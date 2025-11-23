@@ -57,7 +57,7 @@ void WebigeoApp::run()
 
     while (!m_run_ended) {
         std::this_thread::sleep_for(std::chrono::microseconds(500));
-        wgpuDeviceTick(m_device); // needed to receive buffer/texture readback callbacks
+        wgpuInstanceProcessEvents(m_webgpu_instance); // needed to receive buffer/texture readback callbacks
     }
 
     // write settings and timings
