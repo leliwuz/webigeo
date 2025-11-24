@@ -29,21 +29,27 @@ void Settings::write_to_json_file(const Settings& settings, const std::filesyste
 {
     QJsonObject object;
 
-    object["trajectory_resolution_multiplier"] = qint64(settings.resolution_multiplier);
-    object["num_steps"] = qint64(settings.num_simulation_steps);
-    object["num_paths_per_release_cell"] = qint64(settings.num_particles_per_release_cell);
-    object["random_contribution"] = settings.max_random_deviation;
-    object["persistence_contribution"] = settings.persistence;
-    object["alpha"] = settings.max_runout_angle_alpha;
+    // paths
     object["aabb_file_path"] = QString::fromStdString(settings.aabb_file_path);
-    object["release_points_texture_path"] = QString::fromStdString(settings.release_points_texture_path);
     object["heightmap_texture_path"] = QString::fromStdString(settings.heightmap_texture_path);
+    object["release_cells_texture_path"] = QString::fromStdString(settings.release_cells_texture_path);
     object["output_dir_path"] = QString::fromStdString(settings.output_dir_path);
+
+    // hyper parameters
+    object["resolution_multiplier"] = qint64(settings.resolution_multiplier);
+    object["num_simulation_runs"] = qint64(settings.num_simulation_runs);
+    object["num_particles_per_release_cell"] = qint64(settings.num_particles_per_release_cell);
+    object["num_simulation_steps"] = qint64(settings.num_simulation_steps);
+    object["simulation_step_length"] = settings.simulation_step_length;
     object["random_seed"] = qint64(settings.random_seed);
 
-    object["trajectory_resolution_multiplier"] = qint64(settings.resolution_multiplier);
-    object["model_type"] = qint64(settings.model_type);
+    // model parameters
+    object["max_random_deviation"] = settings.max_random_deviation;
+    object["persistence"] = settings.persistence;
+    object["max_runout_angle"] = settings.max_runout_angle_alpha;
 
+    // other model parameters (experimental)
+    object["model_type"] = qint64(settings.model_type);
     object["friction_model"] = qint64(settings.friction_model_type);
     object["friction_coeff"] = settings.friction_coeff;
     object["drag_coeff"] = settings.drag_coeff;
@@ -54,7 +60,9 @@ void Settings::write_to_json_file(const Settings& settings, const std::filesyste
     doc.setObject(object);
 
     QFile output_file(output_path);
-    output_file.open(QIODevice::WriteOnly);
+    if (!output_file.open(QIODevice::WriteOnly)) {
+        qFatal() << "error: Failed to open settings file " << output_path.string() << " for writing: " << output_file.errorString();
+    }
     output_file.write(doc.toJson());
     output_file.close();
 }
@@ -69,7 +77,9 @@ Settings Settings::read_from_json_file(const std::filesystem::path& input_path)
     {
         // Read input file
         QFile input_file(input_path);
-        input_file.open(QIODevice::ReadOnly);
+        if (!input_file.open(QIODevice::ReadOnly)) {
+            qFatal() << "error: Failed to open settings file " << input_path.string() << " for reading: " << input_file.errorString();
+        }
         QByteArray data = input_file.readAll();
         input_file.close();
 
@@ -85,28 +95,63 @@ Settings Settings::read_from_json_file(const std::filesystem::path& input_path)
     }
 
     Settings settings;
-    settings.resolution_multiplier = uint32_t(object["trajectory_resolution_multiplier"].toInteger());
-    settings.num_simulation_steps = uint32_t(object["num_steps"].toInteger());
-    settings.num_particles_per_release_cell = uint32_t(object["num_paths_per_release_cell"].toInteger());
-    settings.max_random_deviation = float(object["random_contribution"].toDouble());
-    settings.persistence = float(object["persistence_contribution"].toDouble());
-    settings.max_runout_angle_alpha = float(object["alpha"].toDouble());
+
+    // paths
     settings.aabb_file_path = object["aabb_file_path"].toString().toStdString();
-    settings.release_points_texture_path = object["release_points_texture_path"].toString().toStdString();
+    settings.release_cells_texture_path = object["release_cells_texture_path"].toString().toStdString();
     settings.heightmap_texture_path = object["heightmap_texture_path"].toString().toStdString();
     settings.output_dir_path = object["output_dir_path"].toString().toStdString();
 
+    // hyper parameters
+    if (object.contains("resolution_multiplier")) {
+        settings.resolution_multiplier = uint32_t(object["resolution_multiplier"].toInteger());
+    }
+    if (object.contains("num_simulation_runs")) {
+        settings.num_simulation_runs = uint32_t(object["num_simulation_runs"].toInteger());
+    }
+    if (object.contains("num_particles_per_release_cell")) {
+        settings.num_particles_per_release_cell = uint32_t(object["num_particles_per_release_cell"].toInteger());
+    }
+    if (object.contains("num_simulation_steps")) {
+        settings.num_simulation_steps = uint32_t(object["num_simulation_steps"].toInteger());
+    }
+    if (object.contains("simulation_step_length")) {
+        settings.simulation_step_length = float(object["simulation_step_length"].toDouble());
+    }
     if (object.contains("random_seed")) {
         settings.random_seed = uint32_t(object["random_seed"].toInteger());
     }
 
-    settings.model_type = int(object["model_type"].toInteger());
+    // model parameters
+    if (object.contains("max_random_deviation")) {
+        settings.max_random_deviation = float(object["max_random_deviation"].toDouble());
+    }
+    if (object.contains("persistence")) {
+        settings.persistence = float(object["persistence"].toDouble());
+    }
+    if (object.contains("max_runout_angle")) {
+        settings.max_runout_angle_alpha = float(object["max_runout_angle"].toDouble());
+    }
 
-    settings.friction_model_type = int(object["friction_model"].toInteger());
-    settings.friction_coeff = float(object["friction_coeff"].toDouble());
-    settings.drag_coeff = float(object["drag_coeff"].toDouble());
-    settings.slab_thickness = float(object["slab_thickness"].toDouble());
-    settings.density = float(object["density"].toDouble());
+    // other model parameters (experimental)
+    if (object.contains("model_type")) {
+        settings.model_type = int(object["model_type"].toInteger());
+    }
+    if (object.contains("friction_model")) {
+        settings.friction_model_type = int(object["friction_model"].toInteger());
+    }
+    if (object.contains("friction_coeff")) {
+        settings.friction_coeff = float(object["friction_coeff"].toDouble());
+    }
+    if (object.contains("drag_coeff")) {
+        settings.drag_coeff = float(object["drag_coeff"].toDouble());
+    }
+    if (object.contains("slab_thickness")) {
+        settings.slab_thickness = float(object["slab_thickness"].toDouble());
+    }
+    if (object.contains("density")) {
+        settings.density = float(object["density"].toDouble());
+    }
 
     return settings;
 }

@@ -97,7 +97,7 @@ void WebigeoApp::update_settings(const Settings& node_graph_settings)
     trajectory_settings.num_runs = node_graph_settings.num_simulation_runs;
     trajectory_settings.num_paths_per_release_cell = node_graph_settings.num_particles_per_release_cell;
     trajectory_settings.num_steps = node_graph_settings.num_simulation_steps;
-    trajectory_settings.step_length = node_graph_settings.step_length;
+    trajectory_settings.step_length = node_graph_settings.simulation_step_length;
     trajectory_settings.random_seed = node_graph_settings.random_seed;
 
     trajectory_settings.random_contribution = node_graph_settings.max_random_deviation;
@@ -132,7 +132,7 @@ void WebigeoApp::update_settings(const Settings& node_graph_settings)
     {
         LoadTextureNode::LoadTextureNodeSettings settings;
         settings.format = WGPUTextureFormat_RGBA8Unorm;
-        settings.file_path = node_graph_settings.release_points_texture_path;
+        settings.file_path = node_graph_settings.release_cells_texture_path;
         m_node_graph->get_node_as<LoadTextureNode>("load_rp_node").set_settings(settings);
     }
 

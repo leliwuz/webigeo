@@ -26,7 +26,7 @@ namespace webigeo_eval {
 struct Settings {
     // input and output paths
     std::string aabb_file_path;
-    std::string release_points_texture_path;
+    std::string release_cells_texture_path;
     std::string heightmap_texture_path;
     std::string output_dir_path;
 
@@ -35,7 +35,7 @@ struct Settings {
     uint32_t num_simulation_runs = 1u;
     uint32_t num_particles_per_release_cell = 1024u;
     uint32_t num_simulation_steps = 10000u;
-    float step_length = 0.1f;
+    float simulation_step_length = 0.1f;
     uint32_t random_seed = 1u;
 
     // model parameters
