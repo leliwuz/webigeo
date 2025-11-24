@@ -39,9 +39,9 @@ struct Settings {
     uint32_t random_seed = 1u;
 
     // model parameters
-    float max_random_deviation = 25.0f; // in degrees
+    float max_random_deviation = 25.0f; // in degrees, also called theta
     float persistence = 0.9f; // in [0.0, 1.0]
-    float max_runout_angle_alpha = 25.0f; // in degrees
+    float max_runout_angle = 25.0f; // in degrees, also called alpha
 
     // other model parameters, experimental
     int model_type = 0;

@@ -46,7 +46,7 @@ void Settings::write_to_json_file(const Settings& settings, const std::filesyste
     // model parameters
     object["max_random_deviation"] = settings.max_random_deviation;
     object["persistence"] = settings.persistence;
-    object["max_runout_angle"] = settings.max_runout_angle_alpha;
+    object["max_runout_angle"] = settings.max_runout_angle;
 
     // other model parameters (experimental)
     object["model_type"] = qint64(settings.model_type);
@@ -130,7 +130,7 @@ Settings Settings::read_from_json_file(const std::filesystem::path& input_path)
         settings.persistence = float(object["persistence"].toDouble());
     }
     if (object.contains("max_runout_angle")) {
-        settings.max_runout_angle_alpha = float(object["max_runout_angle"].toDouble());
+        settings.max_runout_angle = float(object["max_runout_angle"].toDouble());
     }
 
     // other model parameters (experimental)
