@@ -24,29 +24,32 @@
 namespace webigeo_eval {
 
 struct Settings {
-
-    uint32_t trajectory_resolution_multiplier = 16;
-    uint32_t num_steps = 256u;
-    uint32_t num_paths_per_release_cell = 1024u;
-
-    uint32_t random_seed = 1u;
-    float random_contribution = 0.16f;
-    float persistence_contribution = 0.9f;
-    float runout_flowpy_alpha = 25.0f; // in degrees
-
-    int model_type = 1;
-
-    int friction_model_type = 3;
-
-    float friction_coeff = .155;
-    float drag_coeff = 4000.0f;
-    float slab_thickness = 0.5f;
-    float density = 200.0f;
-
+    // input and output paths
     std::string aabb_file_path;
     std::string release_points_texture_path;
     std::string heightmap_texture_path;
     std::string output_dir_path;
+
+    // hyper parameters
+    uint32_t resolution_multiplier = 8u;
+    uint32_t num_simulation_runs = 1u;
+    uint32_t num_particles_per_release_cell = 1024u;
+    uint32_t num_simulation_steps = 10000u;
+    float step_length = 0.1f;
+    uint32_t random_seed = 1u;
+
+    // model parameters
+    float max_random_deviation = 25.0f; // in degrees
+    float persistence = 0.9f; // in [0.0, 1.0]
+    float max_runout_angle_alpha = 25.0f; // in degrees
+
+    // other model parameters, experimental
+    int model_type = 0;
+    int friction_model_type = 0;
+    float friction_coeff = .155f;
+    float drag_coeff = 4000.0f;
+    float slab_thickness = 0.5f;
+    float density = 200.0f;
 
     static void write_to_json_file(const Settings& settings, const std::filesystem::path& output_path);
     static Settings read_from_json_file(const std::filesystem::path& input_path);

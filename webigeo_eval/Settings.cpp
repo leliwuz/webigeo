@@ -29,19 +29,19 @@ void Settings::write_to_json_file(const Settings& settings, const std::filesyste
 {
     QJsonObject object;
 
-    object["trajectory_resolution_multiplier"] = qint64(settings.trajectory_resolution_multiplier);
-    object["num_steps"] = qint64(settings.num_steps);
-    object["num_paths_per_release_cell"] = qint64(settings.num_paths_per_release_cell);
-    object["random_contribution"] = settings.random_contribution;
-    object["persistence_contribution"] = settings.persistence_contribution;
-    object["alpha"] = settings.runout_flowpy_alpha;
+    object["trajectory_resolution_multiplier"] = qint64(settings.resolution_multiplier);
+    object["num_steps"] = qint64(settings.num_simulation_steps);
+    object["num_paths_per_release_cell"] = qint64(settings.num_particles_per_release_cell);
+    object["random_contribution"] = settings.max_random_deviation;
+    object["persistence_contribution"] = settings.persistence;
+    object["alpha"] = settings.max_runout_angle_alpha;
     object["aabb_file_path"] = QString::fromStdString(settings.aabb_file_path);
     object["release_points_texture_path"] = QString::fromStdString(settings.release_points_texture_path);
     object["heightmap_texture_path"] = QString::fromStdString(settings.heightmap_texture_path);
     object["output_dir_path"] = QString::fromStdString(settings.output_dir_path);
     object["random_seed"] = qint64(settings.random_seed);
 
-    object["trajectory_resolution_multiplier"] = qint64(settings.trajectory_resolution_multiplier);
+    object["trajectory_resolution_multiplier"] = qint64(settings.resolution_multiplier);
     object["model_type"] = qint64(settings.model_type);
 
     object["friction_model"] = qint64(settings.friction_model_type);
@@ -85,12 +85,12 @@ Settings Settings::read_from_json_file(const std::filesystem::path& input_path)
     }
 
     Settings settings;
-    settings.trajectory_resolution_multiplier = uint32_t(object["trajectory_resolution_multiplier"].toInteger());
-    settings.num_steps = uint32_t(object["num_steps"].toInteger());
-    settings.num_paths_per_release_cell = uint32_t(object["num_paths_per_release_cell"].toInteger());
-    settings.random_contribution = float(object["random_contribution"].toDouble());
-    settings.persistence_contribution = float(object["persistence_contribution"].toDouble());
-    settings.runout_flowpy_alpha = float(object["alpha"].toDouble());
+    settings.resolution_multiplier = uint32_t(object["trajectory_resolution_multiplier"].toInteger());
+    settings.num_simulation_steps = uint32_t(object["num_steps"].toInteger());
+    settings.num_particles_per_release_cell = uint32_t(object["num_paths_per_release_cell"].toInteger());
+    settings.max_random_deviation = float(object["random_contribution"].toDouble());
+    settings.persistence = float(object["persistence_contribution"].toDouble());
+    settings.max_runout_angle_alpha = float(object["alpha"].toDouble());
     settings.aabb_file_path = object["aabb_file_path"].toString().toStdString();
     settings.release_points_texture_path = object["release_points_texture_path"].toString().toStdString();
     settings.heightmap_texture_path = object["heightmap_texture_path"].toString().toStdString();
