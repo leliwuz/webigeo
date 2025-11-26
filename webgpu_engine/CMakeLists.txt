@@ -111,7 +111,7 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
     alp_add_git_repository(iconfontcppheaders URL https://github.com/juliettef/IconFontCppHeaders.git COMMITISH f30b1e73b2d71eb331d77619c3f1de34199afc38 DO_NOT_ADD_SUBPROJECT)
     target_include_directories(webgpu_engine PUBLIC ../extern/iconfontcppheaders)
 
-    alp_add_git_repository(imgui URL https://github.com/AlpineMapsOrgDependencies/imgui_slim.git COMMITISH 480f1cfdeb84487f6f676324885ba0a2fe178fcd)
+    alp_add_git_repository(imgui URL https://github.com/AlpineMapsOrgDependencies/imgui_slim.git COMMITISH 4d8ecbf58ebf32e757ff56a60f1fb0446033edb8)
 
     set(IMNODES_IMGUI_TARGET_NAME imgui)
     alp_add_git_repository(imnodes URL https://github.com/AlpineMapsOrgDependencies/imnodes_slim.git COMMITISH 324355e64ed8b5bea02fe1439cdcb5c7773b4436)

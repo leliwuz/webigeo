@@ -72,31 +72,10 @@ if (EMSCRIPTEN)
 
 else()
 
-    # set configuration variables for Dawn build
-    set(DAWN_BUILD_MONOLITHIC_LIBRARY STATIC)
-    set(DAWN_FETCH_DEPENDENCIES ON)
-    set(DAWN_FORCE_SYSTEM_COMPONENT_LOAD ON) # currently needed, see https://issues.chromium.org/issues/441317244
-    set(TINT_BUILD_SPV_READER OFF)
-    set(TINT_BUILD_TESTS OFF)
-    set(TINT_BUILD_FUZZERS OFF)
-    set(TINT_BUILD_BENCHMARKS OFF)
-    set(TINT_BUILD_AS_OTHER_OS OFF)
-    set(DAWN_BUILD_SAMPLES OFF)
-    set(DAWN_ENABLE_D3D11 OFF)
-    set(DAWN_ENABLE_D3D12 OFF)
-    set(DAWN_ENABLE_METAL OFF)
-    set(DAWN_ENABLE_NULL OFF)
-    set(DAWN_ENABLE_DESKTOP_GL OFF)
-    set(DAWN_ENABLE_OPENGLES OFF)
-    set(DAWN_ENABLE_VULKAN ON)
-    set(DAWN_USE_WINDOWS_UI OFF)
-    #set(DAWN_USE_GLFW OFF) # TODO turning this off leads to a linker error, "cant find glfw.lib" - how/where/why are we trying to link to glfw?
-
-    # manually cloned at ALP_DAWN_DIR
-    add_subdirectory("${ALP_DAWN_DIR}" "${ALP_DAWN_DIR}/build/${CMAKE_CXX_COMPILER_ID}_${CMAKE_CXX_COMPILER_VERSION}_${CMAKE_BUILD_TYPE}" EXCLUDE_FROM_ALL)
-
     # add dawn libraries to webgpu library
-    target_link_libraries(webgpu PUBLIC webgpu_dawn)
+    set(Dawn_DIR "${ALP_DAWN_DIR}/install/${CMAKE_BUILD_TYPE}/lib/cmake/Dawn")
+    find_package(Dawn REQUIRED)
+    target_link_libraries(webgpu PUBLIC dawn::webgpu_dawn)
 
     # find and add SDL2 (you may install it to the default install folder or ALP_SDL_INSTALL_DIR)
     # Add ALP_SDL_INSTALL_DIR to CMake's search path for find_package
@@ -104,8 +83,9 @@ else()
     find_package(SDL2 REQUIRED)
     target_link_libraries(webgpu PUBLIC SDL2::SDL2 SDL2::SDL2main)
 
+    # TODO verify whether this is still needed and adapt accordingly
     # If tint_lang_hlsl_writer.lib within ${ALP_DAWN_DIR}/build/debug/src exists DAWN was compiled with DX-Backends.
-    file(GLOB_RECURSE TINT_LIB_PATH "${ALP_DAWN_DIR}/build/debug/src/tint_lang_hlsl_writer.lib")
+    file(GLOB_RECURSE TINT_LIB_PATH "${ALP_DAWN_DIR}/out/Debug/src/tint/tint_lang_hlsl_writer.lib")
     if (TINT_LIB_PATH)
         # NOTE: With Direct3D Backends we additionally need to link against dx.
         message(STATUS "Found tint_lang_hlsl_writer.lib, DAWN seems to be compiled with DX-Backends. Will link against dxguid.lib.")

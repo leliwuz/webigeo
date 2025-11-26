@@ -109,22 +109,18 @@ Usually, the Qt-IDE (Qt Creator) sets emscripten environment variables right bef
 
 ### Dependencies
 * Windows
-* Qt 6.9.2 with
-  * Sources
+* Qt 6.10.0 with
   * Qt Shader Tools (otherwise Qt configure fails)
   * MSVC2022 pre-built binaries
 * Python
-* Microsoft Visual C++ Compiler 17.6 (aka. MSVC2022) (comes with Visual Studio 2022)
+* Microsoft Visual C++ Compiler 17.6 (aka. MSVC2022, comes with Visual Studio 2022)
 * To exactly follow along with build instructions you need `ninja` and `cmake` in your PATH
 
 > [!IMPORTANT]
 > Dawn does not compile with MinGW! GCC might be possible, but is not tested (hence the Windows Requirement). If compiling on Linux is necessary it is also required to change the way we link to the precompiled Dawn libraries inside of `cmake/alp_target_add_dawn.cmake`.
 
 ### Building Dawn
-Dawn is the webgpu-implementation used in chromium, which is the open-source-engine for Google Chrome. Compiling dawn ourselves allows us to deploy weBIGeo natively such that we don't have to work in the browser sandbox during development. Building Dawn will take some time and memory as we need Debug and Release-Builds.
-
-> [!NOTE]
-> We choose the dawn version of branch `chromium/6600`, because it is the newest as of writing this. It is well aligned with the emscripten version in use as well as provides important fixes and API changes. All of those versions are subject to change, especially since the webgpu-standard is not finalized! 
+[Dawn](https://dawn.googlesource.com/dawn/) is the webGPU implementation used in Chromium, which is the open-source engine powering Google Chrome. Compiling Dawn ourselves allows us to deploy weBIGeo natively such that we don't have to work in the browser sandbox during development. Building Dawn will take some time and memory as we need Debug and Release builds.
 
 1. We need the compiler env variables, so choose either (or do manually :P)
 
@@ -135,52 +131,42 @@ Dawn is the webgpu-implementation used in chromium, which is the open-source-eng
       "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
       ```
 
-2.  Navigate to the parent folder of where the weBIGeo renderer is located. (Not strictly necessary as DAWN location can be set with CMAKE-Variable `ALP_DAWN_DIR`)
-    ```
-    cd "/path/to/the/parent/directory/of/webigeo/renderer"
-    ```
-
-3.  Clone dawn and step into directory
-    ```
-    git clone --branch chromium/6600 --depth 1 https://dawn.googlesource.com/dawn & cd dawn
-    ```
-
-4.  Fetch dawn dependencies
-    ```
-    python tools/fetch_dawn_dependencies.py
-    ```
-
-5.  Create build directories
-    ```
-    mkdir build\release & mkdir build\debug
-    ```
-
-6.  Debug Build (minimal vulkan only build):
-    ```
-    cd build/debug & cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DTINT_BUILD_SPV_READER=OFF -DDAWN_BUILD_SAMPLES=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_SPIRV_TOOLS_FUZZER=OFF -DTINT_BUILD_AST_FUZZER=OFF -DTINT_BUILD_REGEX_FUZZER=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF -DDAWN_ENABLE_D3D11=OFF -DDAWN_ENABLE_D3D12=OFF -DDAWN_ENABLE_METAL=OFF -DDAWN_ENABLE_NULL=OFF -DDAWN_ENABLE_DESKTOP_GL=OFF -DDAWN_ENABLE_OPENGLES=OFF -DDAWN_ENABLE_VULKAN=ON ../.. & ninja
-    ```
-
-7.  Release Build (minimal vulkan only build):
-    ```
-    cd ../release & cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DTINT_BUILD_SPV_READER=OFF -DDAWN_BUILD_SAMPLES=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_SPIRV_TOOLS_FUZZER=OFF -DTINT_BUILD_AST_FUZZER=OFF -DTINT_BUILD_REGEX_FUZZER=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF -DDAWN_ENABLE_D3D11=OFF -DDAWN_ENABLE_D3D12=OFF -DDAWN_ENABLE_METAL=OFF -DDAWN_ENABLE_NULL=OFF -DDAWN_ENABLE_DESKTOP_GL=OFF -DDAWN_ENABLE_OPENGLES=OFF -DDAWN_ENABLE_VULKAN=ON ../.. & ninja
-    ```
-	
-8. Cleanup (Optional)
-   To cleanup unnecessary files, like the DAWN sources aswell as configuration files we created a python script. It frees up around 3GB of files. Maybe DAWN will introduce an installation target at some point then this shouldnt be necessary. You can get the [script either here](https://github.com/weBIGeo/ressources/raw/main/scripts/cleanup_dawn_build.py), or just download and execute it with the following command:
+2. Navigate to the parent folder of where the weBIGeo renderer is located. (Not strictly necessary as DAWN location can be set with CMAKE-Variable `ALP_DAWN_DIR`)
+   ```bash
+   cd "/path/to/the/parent/directory/of/webigeo/renderer"
    ```
-   cd ../.. & curl -L "https://github.com/weBIGeo/ressources/raw/main/scripts/cleanup_dawn_build.py" -o cleanup_dawn_build.py && python cleanup_dawn_build.py
+
+3. Clone Dawn and step into directory
+   ```bash
+   git clone -b chromium/7548 https://dawn.googlesource.com/dawn && cd dawn
    ```
+
+3.  Debug Build (minimal vulkan only build):
+    ```bash
+    cmake -GNinja -S . -B out/Debug -DDAWN_BUILD_MONOLITHIC_LIBRARY=STATIC -DDAWN_FETCH_DEPENDENCIES=ON -DDAWN_ENABLE_INSTALL=ON -DCMAKE_BUILD_TYPE=Release -DTINT_BUILD_SPV_READER=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF -DDAWN_BUILD_SAMPLES=OFF -DDAWN_ENABLE_D3D11=OFF -DDAWN_ENABLE_D3D12=OFF -DDAWN_ENABLE_METAL=OFF -DDAWN_ENABLE_NULL=OFF -DDAWN_ENABLE_DESKTOP_GL=OFF -DDAWN_ENABLE_OPENGLES=OFF -DDAWN_ENABLE_VULKAN=ON -DDAWN_USE_WINDOWS_UI=OFF -DDAWN_USE_GLFW=OFF && cmake --build out/Debug && cmake --install out/Debug --prefix install/Debug
+    ```
+
+4. Configure, build and install Release build
+   ```bash
+   cmake -GNinja -S . -B out/Release -DDAWN_BUILD_MONOLITHIC_LIBRARY=STATIC -DDAWN_FETCH_DEPENDENCIES=ON -DDAWN_ENABLE_INSTALL=ON -DCMAKE_BUILD_TYPE=Release -DTINT_BUILD_SPV_READER=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF -DDAWN_BUILD_SAMPLES=OFF -DDAWN_ENABLE_D3D11=OFF -DDAWN_ENABLE_D3D12=OFF -DDAWN_ENABLE_METAL=OFF -DDAWN_ENABLE_NULL=OFF -DDAWN_ENABLE_DESKTOP_GL=OFF -DDAWN_ENABLE_OPENGLES=OFF -DDAWN_ENABLE_VULKAN=ON -DDAWN_USE_WINDOWS_UI=OFF -DDAWN_USE_GLFW=OFF && cmake --build out/Release && cmake --install out/Release --prefix install/Release
+   ```
+
+5. Cleanup (Optional):
+   Delete everything within the Dawn director except the `install/` directory.
 
 ### About DAWN Backends
 Per default we opt for an only Vulkan-Backend Build for two reasons:
 - Vulkan is probably the most supported Backend running on most devices
 - We have more knowledge about Vulkan which comes to play when we use GPU debugers
 
-That being said it is possible to compile DAWN with all Backends by using the following commands *instead of step 6 and 7*:
-```
-cd build/debug & cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DTINT_BUILD_SPV_READER=OFF -DDAWN_BUILD_SAMPLES=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_SPIRV_TOOLS_FUZZER=OFF -DTINT_BUILD_AST_FUZZER=OFF -DTINT_BUILD_REGEX_FUZZER=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF ../.. & ninja
+That being said it is possible to compile DAWN with all Backends by using the following commands *instead of step 3 and 4*:
 
-cd ../release & cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DTINT_BUILD_SPV_READER=OFF -DDAWN_BUILD_SAMPLES=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_SPIRV_TOOLS_FUZZER=OFF -DTINT_BUILD_AST_FUZZER=OFF -DTINT_BUILD_REGEX_FUZZER=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF ../.. & ninja
+```bash
+cmake -GNinja -S . -B out/Debug -DDAWN_BUILD_MONOLITHIC_LIBRARY=STATIC -DDAWN_FETCH_DEPENDENCIES=ON -DDAWN_ENABLE_INSTALL=ON -DCMAKE_BUILD_TYPE=Release -DTINT_BUILD_SPV_READER=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF -DDAWN_BUILD_SAMPLES=OFF  -DDAWN_USE_WINDOWS_UI=OFF -DDAWN_USE_GLFW=OFF && cmake --build out/Debug && cmake --install out/Debug --prefix install/Debug
+```
+
+```bash
+cmake -GNinja -S . -B out/Release -DDAWN_BUILD_MONOLITHIC_LIBRARY=STATIC -DDAWN_FETCH_DEPENDENCIES=ON -DDAWN_ENABLE_INSTALL=ON -DCMAKE_BUILD_TYPE=Release -DTINT_BUILD_SPV_READER=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF -DDAWN_BUILD_SAMPLES=OFF  -DDAWN_USE_WINDOWS_UI=OFF -DDAWN_USE_GLFW=OFF && cmake --build out/Release && cmake --install out/Release --prefix install/Release
 ```
 
 ### Building SDL
