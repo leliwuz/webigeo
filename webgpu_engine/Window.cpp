@@ -214,7 +214,7 @@ void Window::paint_gui()
             for (size_t i = 0; i < overlays.size(); i++) {
                 bool isSelected = ((size_t)currentItem == i);
                 if (ImGui::Selectable(overlays[i].first.c_str(), isSelected)) {
-                    currentItem = i;
+                    currentItem = int(i);
                     m_needs_redraw = true;
                 }
                 if (isSelected)
@@ -613,7 +613,7 @@ void Window::paint_compute_pipeline_gui()
             for (size_t i = 0; i < overlays.size(); i++) {
                 bool is_selected = ((size_t)overlays_current_item == i);
                 if (ImGui::Selectable(overlays[i].first.c_str(), is_selected)) {
-                    overlays_current_item = i;
+                    overlays_current_item = int(i);
                     create_and_set_compute_pipeline(overlays[i].second);
                 }
                 if (is_selected)
@@ -755,12 +755,12 @@ void Window::paint_compute_pipeline_gui()
                             { "SamosAt", 3 },
                             { "None", 4 },
                         };
-                        const char* current_item_label = friction_model[friction_model_current_item].first.c_str();
-                        if (ImGui::BeginCombo("Friction model", current_item_label)) {
+                        const char* current_item_label_friction = friction_model[friction_model_current_item].first.c_str();
+                        if (ImGui::BeginCombo("Friction model", current_item_label_friction)) {
                             for (size_t i = 0; i < friction_model.size(); i++) {
                                 bool is_selected = ((size_t)friction_model_current_item == i);
                                 if (ImGui::Selectable(friction_model[i].first.c_str(), is_selected)) {
-                                    friction_model_current_item = i;
+                                    friction_model_current_item = int(i);
                                     m_compute_pipeline_settings.friction_model_type = friction_model[i].second;
                                     update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
                                 }
@@ -895,12 +895,12 @@ void Window::paint_compute_pipeline_gui()
                     { "None", 0 },
                     { "FlowPy (Alpha)", 2 },
                 };
-                const char* current_item_label = runout_models[runout_models_current_item].first.c_str();
-                if (ImGui::BeginCombo("Runout model", current_item_label)) {
+                const char* current_item_label_model = runout_models[runout_models_current_item].first.c_str();
+                if (ImGui::BeginCombo("Runout model", current_item_label_model)) {
                     for (size_t i = 0; i < runout_models.size(); i++) {
                         bool is_selected = ((size_t)runout_models_current_item == i);
                         if (ImGui::Selectable(runout_models[i].first.c_str(), is_selected)) {
-                            runout_models_current_item = i;
+                            runout_models_current_item = int(i);
                             m_compute_pipeline_settings.friction_model_type = runout_models[i].second;
                             update_settings_and_rerun_pipeline();
                         }

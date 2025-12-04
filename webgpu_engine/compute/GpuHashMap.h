@@ -92,7 +92,7 @@ public:
                 return key_value_pair.first;
             }
         }
-        return KeyType();
+        return KeyType {};
     }
 
     /// Update GPU buffers.

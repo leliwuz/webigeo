@@ -74,9 +74,6 @@ void GuiManager::init(
     ImGui_ImplWGPU_Init(&init_info);
 
     webgpu_app::util::setup_darkmode_imgui_style();
-    // ImGui::StyleColorsLight();
-    // ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImVec4(0.9f, 0.9f, 0.9f, 0.9f);
-    // ImNodes::StyleColorsLight();
 
     this->install_fonts();
 

@@ -106,9 +106,9 @@ void DownsampleTilesNode::run_impl()
 
     for (size_t i = 1; i < m_settings.num_levels; i++) {
         downsampled_tile_ids = get_tile_ids_for_downsampled_tiles(downsampled_tile_ids);
-        std::optional<NodeRunFailureInfo> potential_failure = compute_downsampled_tiles(downsampled_tile_ids);
-        if (potential_failure.has_value()) {
-            emit run_failed(potential_failure.value());
+        std::optional<NodeRunFailureInfo> potential_failure2 = compute_downsampled_tiles(downsampled_tile_ids);
+        if (potential_failure2.has_value()) {
+            emit run_failed(potential_failure2.value());
             return;
         }
     }

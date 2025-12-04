@@ -167,6 +167,7 @@ public:
                 m_read_back_callbacks.back().staging_buffer->handle(), WGPUMapMode_Read, 0, size_in_byte(), on_buffer_mapped_callback_info);
         } else {
             qFatal("Cannot initialise buffer read back. Buffer requires MapRead or CopySrc usage");
+            return {};
         }
     }
 

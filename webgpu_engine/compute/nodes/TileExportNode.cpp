@@ -143,13 +143,13 @@ void TileExportNode::impl_texture_array()
     const auto& hash_map = *std::get<data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
     auto& textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("textures").get_connected_data());
 
-    m_total_tile_count = tile_ids.size();
+    m_total_tile_count = int(tile_ids.size());
     m_tile_size = glm::uvec2(textures.texture().texture().width(), textures.texture().texture().height());
 
     for (size_t i = 0; i < tile_ids.size(); i++) {
         textures.texture().texture().read_back_async(m_device, i, [this, &hash_map](size_t layer_index, std::shared_ptr<QByteArray> data) {
             // const auto& tile_id = tile_ids[layer_index];
-            const auto& tile_id = hash_map.key_with_value(layer_index);
+            const auto& tile_id = hash_map.key_with_value(int(layer_index));
             m_tile_data[tile_id] = data;
 
             m_exported_tile_count++;

@@ -187,6 +187,7 @@ int NodeRenderer::get_input_socket_id(const std::string& input_socket_name) cons
         }
     }
     qFatal() << "tried to get non-existing input socket " << input_socket_name << " from node renderer for node " << m_name;
+    return -1;
 }
 
 int NodeRenderer::get_output_socket_id(const std::string& output_socket_name) const
@@ -199,6 +200,7 @@ int NodeRenderer::get_output_socket_id(const std::string& output_socket_name) co
         }
     }
     qFatal() << "tried to get non-existing input socket " << output_socket_name << " from node renderer for node " << m_name;
+    return -1;
 }
 
 } // namespace webgpu_engine::compute

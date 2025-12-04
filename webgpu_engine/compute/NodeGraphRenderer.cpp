@@ -371,7 +371,7 @@ void NodeGraphRenderer::render()
     for (size_t i = 0; i < m_links.size(); ++i) {
         const std::pair<int, int> p = m_links[i];
         // in this case, we just use the array index of the link as the unique identifier
-        ImNodes::Link(i, p.first, p.second);
+        ImNodes::Link(int(i), p.first, p.second);
     }
 
     ImNodes::MiniMap(0.1f, ImNodesMiniMapLocation_BottomRight);

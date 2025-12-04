@@ -50,7 +50,10 @@ void IterativeSimulationNode::run_impl()
     const auto& input_release_point_texture
         = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("release point texture").get_connected_data());
 
-    m_output_texture = create_texture(m_device, input_height_texture.texture().width(), input_height_texture.texture().height(), WGPUTextureFormat_RGBA8Unorm,
+    m_output_texture = create_texture(m_device,
+        uint32_t(input_height_texture.texture().width()),
+        uint32_t(input_height_texture.texture().height()),
+        WGPUTextureFormat_RGBA8Unorm,
         WGPUTextureUsage(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding));
 
     m_settings_uniform = std::make_unique<Buffer<IterativeSimulationSettingsUniform>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
