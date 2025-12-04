@@ -1,6 +1,7 @@
 #############################################################################
 # weBIGeo
 # Copyright (C) 2024 Gerald Kimmersdorfer
+# Copyright (C) 2025 Patrick Komon
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +25,8 @@ project(alpine-renderer-webgpu LANGUAGES C CXX)
 set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/../dawn" CACHE PATH "path to the dawn repo with debug and release builds. (only necessary for native build)")
 
 set(ALP_SDL_INSTALL_DIR "${CMAKE_SOURCE_DIR}/../SDL" CACHE PATH "Path to the SDL installation directory")
+
+set(ALP_DAWN_PORT_DIR "${CMAKE_SOURCE_DIR}/../emdawnwebgpu_pkg/emdawnwebgpu.port.py" CACHE FILEPATH "Path to the emdawnwebgpu Emscripten port file")
 
 set(SOURCES
 
@@ -56,18 +59,26 @@ set(SOURCES
 add_library(webgpu STATIC ${SOURCES})
 
 if (EMSCRIPTEN)
+    if (EXISTS "${ALP_DAWN_PORT_DIR}")
+        message(STATUS "Using custom Dawn port: ${ALP_DAWN_PORT_DIR}")
+        set(ALP_DAWN_PORT_ARG "--use-port=${ALP_DAWN_PORT_DIR}")
+    else()
+        message(WARNING
+            "ALP_DAWN_PORT_DIR not found at '${ALP_DAWN_PORT_DIR}'. "
+            "Falling back to default Emscripten port emdawnwebgpu"
+        )
+        set(ALP_DAWN_PORT_ARG "--use-port=emdawnwebgpu")
+    endif()
+
     target_compile_options(webgpu PUBLIC
         "--use-port=sdl2"
-        "--use-port=emdawnwebgpu" # could use this instead of locally compiled emdawnwebgpu
+        "${ALP_DAWN_PORT_ARG}"
     )
-
-    # using self-compiled version of emdawnwebgpu_cpp seems to introduce compile errors, stick to --use-port for now
-    #target_link_libraries(webgpu PUBLIC emdawnwebgpu_cpp)
 
     target_link_options(webgpu PUBLIC
         "-sASYNCIFY=1"
         "--use-port=sdl2"
-        "--use-port=emdawnwebgpu" # could use this instead of locally compiled emdawnwebgpu
+        "${ALP_DAWN_PORT_ARG}"
     )
 
 else()

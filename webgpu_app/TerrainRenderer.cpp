@@ -290,12 +290,6 @@ void TerrainRenderer::start() {
         &nucleus::camera::Controller::set_model_matrix);
 
     connect(m_webgpu_window.get(), &nucleus::AbstractRenderWindow::update_requested, this, &TerrainRenderer::schedule_update);
-
-#ifdef __EMSCRIPTEN__
-    // connect(&WebInterop::instance(), &WebInterop::mouse_button_event, m_input_mapper.get(), &InputMapper::on_mouse_button_callback);
-    // connect(&WebInterop::instance(), &WebInterop::mouse_position_event, m_input_mapper.get(), &InputMapper::on_cursor_position_callback);
-#endif
-
     connect(m_input_mapper.get(), &InputMapper::key_pressed, this, &TerrainRenderer::handle_shortcuts);
 
     m_webgpu_window->set_wgpu_context(m_instance, m_device, m_adapter, m_surface, m_queue, m_context->engine_context());

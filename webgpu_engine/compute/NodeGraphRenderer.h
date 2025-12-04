@@ -46,7 +46,6 @@ private:
 
     ImVec2 m_window_size = ImVec2(0, 0);
     std::string m_window_title;
-    bool m_print_style = false;
 
     std::unordered_map<const nodes::Node*, ImVec2> m_target_layout;
     std::unordered_map<const nodes::Node*, ImVec2> m_start_layout;

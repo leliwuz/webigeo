@@ -55,44 +55,30 @@ target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine Qt::Core)
 target_include_directories(webgpu_app PRIVATE .)
 
 if (EMSCRIPTEN)
-    # Define the exported functions
-    set(WEBGPU_EXPORTED_FUNCTIONS
-        _main
-        _global_file_uploaded
-        _malloc
-        _free
-    )
 
-    string(REPLACE ";" "," WEBGPU_EXPORTED_FUNCTIONS_STRING "${WEBGPU_EXPORTED_FUNCTIONS}")
-
-    # because of a bug with emscripten and -pthreads, we have to add __emscripten_thread_crashed,__embind_initialize_bindings
-    # to EXPORTED_FUNCTIONS; for details see https://github.com/emscripten-core/emscripten/issues/21844
     target_link_options(webgpu_app PRIVATE
             --use-port=sdl2 # Use emscripten SDL2 implementation
-            -sASYNCIFY # Required by WebGPU-C++
-            -sEXPORTED_FUNCTIONS=${WEBGPU_EXPORTED_FUNCTIONS_STRING} # _main needs to be specifically exported if sEXPORTED_FUNCTIONS is set
-            #-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF16ToString,stringToUTF16,JSEvents,specialHTMLTargets,FS # will be overwritten by Qt
-            #--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/resources # resources pls via qt resource system
-            #--shell-file "${CMAKE_CURRENT_SOURCE_DIR}/shell/${SHELL_FILE}" # setting custom shell here makes no sense as qt will overwrite it anyway
+            #--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/resources # DONT USE RESOURCES PLS VIA QT RESOURCE SYSTEM
+            #--shell-file "${CMAKE_CURRENT_SOURCE_DIR}/shell/${SHELL_FILE}" # DOESNT WORK AS QT WILL OVERWRITE IT
             -msimd128   #enables auto-vectorization and simd support
             -lembind #enable embind
             #-gsource-map #generate source maps
 
-            # FOLLOWING IS SET BY Qt6.6.1 (Single thread)
+            # FOLLOWING IS SET BY Qt6.10
+            #-s EXPORTED_RUNTIME_METHODS=UTF16ToString,stringToUTF16,JSEvents,specialHTMLTargets,FS,callMain
+            #-s EXPORTED_FUNCTIONS=_main,__embind_initialize_bindings
+            #-s PTHREAD_POOL_SIZE=4
             #-s INITIAL_MEMORY=50MB
-            #-s EXPORTED_RUNTIME_METHODS=UTF16ToString,stringToUTF16,JSEvents,specialHTMLTargets,FS
+            #-s MAXIMUM_MEMORY=4GB
             #-s MAX_WEBGL_VERSION=2
-            #-s FETCH=1  # necessary for Network-Requests
             #-s WASM_BIGINT=1
             #-s STACK_SIZE=5MB
-            #-s MODULARIZE=1
-            #-s EXPORT_NAME=createQtAppInstance
-            #-s DISABLE_EXCEPTION_CATCHING=1
+            #-pthread
             #-s ALLOW_MEMORY_GROWTH
-            #-s DEMANGLE_SUPPORT=1
             #--profiling-funcs
-            #-sASYNCIFY_IMPORTS=qt_asyncify_suspend_js,qt_asyncify_resume_js
-            #-s ERROR_ON_UNDEFINED_SYMBOLS=1
+            #-sERROR_ON_UNDEFINED_SYMBOLS=1
+            #-sFETCH
+            #-sASYNCIFY=1
     )
 
     # enables to append to EXPORTED_RUNTIME_METHODS which is overridden by Qt
@@ -113,12 +99,6 @@ if (EMSCRIPTEN)
             ${CMAKE_CURRENT_BINARY_DIR}/${SHELL_FILE_NAME}
         )
     endforeach()
-
-    #add_custom_command(TARGET webgpu_app POST_BUILD
-    #    COMMAND ${CMAKE_COMMAND} -E copy
-    #            ${CMAKE_CURRENT_SOURCE_DIR}/shell/fullscreen_qt_webgpu_shell.html
-    #            ${CMAKE_CURRENT_BINARY_DIR}/webgpu_app.html
-    #)
 
 
 endif()

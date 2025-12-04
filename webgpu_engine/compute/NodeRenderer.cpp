@@ -21,6 +21,7 @@
 
 #include <imgui.h>
 #include <imnodes.h>
+#include <iomanip>
 #include <qDebug>
 
 namespace webgpu_engine::compute {

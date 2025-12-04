@@ -79,6 +79,8 @@ public:
     [[nodiscard]] const std::string& name() const;
     [[nodiscard]] DataType type() const;
 
+    [[nodiscard]] FlowDirection direction() const { return m_direction; }
+
 private:
     Node* m_node;
     std::string m_name;

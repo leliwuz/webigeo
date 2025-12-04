@@ -103,7 +103,6 @@ void Window::initialise_gpu()
     m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
     m_compute_overlay_dummy_texture = create_overlay_texture(1, 1);
 
-    init_compute_pipeline_presets();
     create_and_set_compute_pipeline(ComputePipelineType::AVALANCHE_TRAJECTORIES, false);
 
     qInfo() << "gpu_ready_changed";
@@ -1404,45 +1403,6 @@ void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
     } else {
         qWarning() << "No region selected. Please load track.";
     }
-}
-
-void Window::init_compute_pipeline_presets()
-{
-    ComputePipelineSettings default_values;
-    ComputePipelineSettings preset_a = {
-        .target_region = {}, // select tiles node
-        .zoomlevel = 18,
-        .num_steps = 512u,
-        .step_length = 0.1f,
-        .sync_snow_settings_with_render_settings = true, // snow node
-        .snow_settings = compute::nodes::ComputeSnowNode::SnowSettingsUniform(), // snow node
-        .release_point_interval = 16, // trajectories node
-        .perla = {},
-    };
-    ComputePipelineSettings preset_b = {
-        .target_region = {}, // select tiles node
-        .zoomlevel = 18,
-        .num_steps = 2048u,
-        .step_length = 0.1f,
-        .sync_snow_settings_with_render_settings = true, // snow node
-        .snow_settings = compute::nodes::ComputeSnowNode::SnowSettingsUniform(), // snow node
-        .release_point_interval = 16, // trajectories node
-        .perla = {},
-    };
-
-    m_compute_pipeline_presets.push_back(default_values);
-    m_compute_pipeline_presets.push_back(preset_a);
-    m_compute_pipeline_presets.push_back(preset_b);
-}
-
-void Window::apply_compute_pipeline_preset(size_t preset_index)
-{
-    assert(preset_index < m_compute_pipeline_presets.size());
-
-    // replace all parameters except selected region
-    const auto old_region = m_compute_pipeline_settings.target_region;
-    m_compute_pipeline_settings = m_compute_pipeline_presets.at(preset_index);
-    m_compute_pipeline_settings.target_region = old_region;
 }
 
 // Equivalent of std::bit_width that is available from C++20 onward
