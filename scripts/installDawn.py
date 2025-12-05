@@ -93,7 +93,7 @@ def main():
             run([args.cmake_path, "--build", out_dir])
             run([args.cmake_path, "--install", out_dir, "--prefix", install_prefix])
 
-        # cleanup
+        print("---- Cleaning up DAWN build files and sources", flush=True)
         for entry in os.listdir(dawn_dir):
             full_path = os.path.join(dawn_dir, entry)
             if entry != "install":
