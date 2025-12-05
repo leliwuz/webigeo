@@ -20,8 +20,6 @@
 
 project(alpine-renderer-webgpu_app LANGUAGES C CXX)
 
-# option to enable/disable imgui
-option(ALP_WEBGPU_APP_ENABLE_IMGUI "Enable imgui" ON)
 
 set(SOURCES
     main.cpp

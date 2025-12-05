@@ -22,11 +22,10 @@ project(alpine-renderer-webgpu LANGUAGES C CXX)
 # NOTE: The idea behind this target is to accumulate all the webgpu related things that are platform
 # dependent such that we only have the webgpu cmake target for the other projects to link against.
 
-set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/../dawn" CACHE PATH "path to the dawn repo with debug and release builds. (only necessary for native build)")
-
-set(ALP_SDL_INSTALL_DIR "${CMAKE_SOURCE_DIR}/../SDL" CACHE PATH "Path to the SDL installation directory")
-
-set(ALP_DAWN_PORT_DIR "${CMAKE_SOURCE_DIR}/../emdawnwebgpu_pkg/emdawnwebgpu.port.py" CACHE FILEPATH "Path to the emdawnwebgpu Emscripten port file")
+set(ALP_DAWN_VERSION "20251204.180718") # Version of Dawn to download (see https://github.com/google/dawn/releases)
+set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/dawn")
+set(ALP_SDL_INSTALL_DIR "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl")
+set(ALP_DAWN_PORT_DIR "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/emdawnwebgpu_pkg/emdawnwebgpu.port.py")
 
 set(SOURCES
 
@@ -58,35 +57,121 @@ set(SOURCES
 
 add_library(webgpu STATIC ${SOURCES})
 
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
 if (EMSCRIPTEN)
-    if (EXISTS "${ALP_DAWN_PORT_DIR}")
-        message(STATUS "Using custom Dawn port: ${ALP_DAWN_PORT_DIR}")
-        set(ALP_DAWN_PORT_ARG "--use-port=${ALP_DAWN_PORT_DIR}")
-    else()
-        message(WARNING
-            "ALP_DAWN_PORT_DIR not found at '${ALP_DAWN_PORT_DIR}'. "
-            "Falling back to default Emscripten port emdawnwebgpu"
+
+    # Ensure Dawn port exists, otherwise fetch it
+    if (NOT EXISTS "${ALP_DAWN_PORT_DIR}")
+        message(STATUS "Dawn port not found, fetching...")
+
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE}
+                "${CMAKE_SOURCE_DIR}/scripts/fetchDawnPort.py"
+                --dawn-version "${ALP_DAWN_VERSION}"
+                --extern-dir "${ALP_EXTERN_DIR}"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            RESULT_VARIABLE FETCH_RESULT
         )
-        set(ALP_DAWN_PORT_ARG "--use-port=emdawnwebgpu")
+
+        if (NOT FETCH_RESULT EQUAL 0)
+            message(FATAL_ERROR "Failed to fetch Dawn Emscripten port.")
+        endif()
     endif()
 
+
+
     target_compile_options(webgpu PUBLIC
-        "--use-port=sdl2"
-        "${ALP_DAWN_PORT_ARG}"
+    "--use-port=sdl2"
+    "--use-port=${ALP_DAWN_PORT_DIR}"
     )
 
+
     target_link_options(webgpu PUBLIC
-        "-sASYNCIFY=1"
-        "--use-port=sdl2"
-        "${ALP_DAWN_PORT_ARG}"
+    "-sASYNCIFY=1"
+    "--use-port=sdl2"
+    "--use-port=${ALP_DAWN_PORT_DIR}"
     )
 
 else()
 
-    # add dawn libraries to webgpu library
+    # Ensure Dawn is installed
+    if (NOT EXISTS "${ALP_DAWN_DIR}/install/${CMAKE_BUILD_TYPE}/lib/cmake/Dawn")
+        message(STATUS "Dawn installation missing - running installDawn.py...")
+
+        if (NOT DEFINED ALP_CMAKE_EXECUTABLE)
+            find_program(ALP_CMAKE_EXECUTABLE cmake)
+            if (NOT ALP_CMAKE_EXECUTABLE)
+                message(FATAL_ERROR "cmake not found in PATH")
+            endif()
+        endif()
+
+        if (NOT DEFINED ALP_NINJA_EXECUTABLE)
+            find_program(ALP_NINJA_EXECUTABLE ninja)
+            if (NOT ALP_NINJA_EXECUTABLE)
+                message(FATAL_ERROR "ninja not found in PATH")
+            endif()
+        endif()
+
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/installDawn.py"
+                --dawn-version ${ALP_DAWN_VERSION}
+                --extern-dir "${ALP_EXTERN_DIR}"
+                --cmake-path "${ALP_CMAKE_EXECUTABLE}"
+                --ninja-path "${ALP_NINJA_EXECUTABLE}"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            RESULT_VARIABLE DAWN_RESULT
+        )
+
+        if (NOT DAWN_RESULT EQUAL 0)
+            message(FATAL_ERROR "installDawn.py failed.")
+        endif()
+    endif()
+
+
+
     set(Dawn_DIR "${ALP_DAWN_DIR}/install/${CMAKE_BUILD_TYPE}/lib/cmake/Dawn")
     find_package(Dawn REQUIRED)
     target_link_libraries(webgpu PUBLIC dawn::webgpu_dawn)
+
+    # Ensure SDL is installed
+    if (NOT EXISTS "${ALP_SDL_INSTALL_DIR}")
+        message(STATUS "SDL not found - running installSDL.py...")
+
+        if (NOT DEFINED ALP_CMAKE_EXECUTABLE)
+            find_program(ALP_CMAKE_EXECUTABLE cmake)
+            if (NOT ALP_CMAKE_EXECUTABLE)
+                message(FATAL_ERROR "cmake not found")
+            endif()
+        endif()
+
+        if (NOT DEFINED ALP_NINJA_EXECUTABLE)
+            find_program(ALP_NINJA_EXECUTABLE ninja)
+            if (NOT ALP_NINJA_EXECUTABLE)
+                message(FATAL_ERROR "ninja not found")
+            endif()
+        endif()
+
+        if (NOT DEFINED ALP_GIT_EXECUTABLE)
+            find_program(ALP_GIT_EXECUTABLE git)
+            if (NOT ALP_GIT_EXECUTABLE)
+                message(FATAL_ERROR "git not found")
+            endif()
+        endif()
+
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/installSDL.py"
+                --install-prefix "${ALP_SDL_INSTALL_DIR}"
+                --cmake-path "${ALP_CMAKE_EXECUTABLE}"
+                --ninja-path "${ALP_NINJA_EXECUTABLE}"
+                --git-path "${ALP_GIT_EXECUTABLE}"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            RESULT_VARIABLE SDL_RESULT
+        )
+        if (NOT SDL_RESULT EQUAL 0)
+            message(FATAL_ERROR "installSDL.py failed.")
+        endif()
+    endif()
 
     # find and add SDL2 (you may install it to the default install folder or ALP_SDL_INSTALL_DIR)
     # Add ALP_SDL_INSTALL_DIR to CMake's search path for find_package
