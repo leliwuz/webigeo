@@ -57,7 +57,7 @@ def main():
             shutil.rmtree(dawn_dir)
         shutil.move(extracted_dir, dawn_dir)
 
-        for build_type in ["Debug", "Release"]:  # ["Release", "Debug"]:
+        for build_type in ["Debug", "Release"]:
             out_dir = os.path.join(dawn_dir, "out", build_type)
             install_prefix = os.path.join(dawn_dir, "install", build_type)
             os.makedirs(out_dir, exist_ok=True)
@@ -68,7 +68,7 @@ def main():
                 dawn_dir,
                 "-B", out_dir,
                 "-DDAWN_BUILD_MONOLITHIC_LIBRARY=STATIC",
-                "-DDAWN_FORCE_SYSTEM_COMPONENT_LOAD=ON",
+                "-DDAWN_FORCE_SYSTEM_COMPONENT_LOAD=ON", # If compile issues occur, try changing to OFF
                 "-DDAWN_FETCH_DEPENDENCIES=ON",
                 "-DDAWN_ENABLE_INSTALL=ON",
                 f"-DCMAKE_BUILD_TYPE={build_type}",
@@ -78,9 +78,9 @@ def main():
                 "-DTINT_BUILD_BENCHMARKS=OFF",
                 "-DTINT_BUILD_AS_OTHER_OS=OFF",
                 "-DDAWN_BUILD_SAMPLES=OFF",
-                "-DDAWN_ENABLE_D3D11=OFF",
-                "-DDAWN_ENABLE_D3D12=OFF",
-                "-DDAWN_ENABLE_METAL=OFF",
+                "-DDAWN_ENABLE_D3D11=OFF", # Try different backends if issues with Vulkan
+                "-DDAWN_ENABLE_D3D12=OFF", # Try different backends if issues with Vulkan
+                "-DDAWN_ENABLE_METAL=OFF", # Try different backends if issues with Vulkan
                 "-DDAWN_ENABLE_NULL=OFF",
                 "-DDAWN_ENABLE_DESKTOP_GL=OFF",
                 "-DDAWN_ENABLE_OPENGLES=OFF",
