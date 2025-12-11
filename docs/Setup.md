@@ -1,5 +1,5 @@
 # Setup
-weBIGeo's can be deployed to the web via emscripten and additionally we support native builds on Windows, using [Dawn](https://dawn.googlesource.com/) and [SDL2](https://github.com/libsdl-org/SDL/tree/SDL2). This allows for faster development as emscripten linking is quite slow and GPU debugging is not easily possible in the web.
+weBIGeo can be deployed to the web via emscripten and additionally we support native builds on Windows, using [Dawn](https://dawn.googlesource.com/) and [SDL2](https://github.com/libsdl-org/SDL/tree/SDL2). This allows for faster development as emscripten linking is quite slow and GPU debugging is not easily possible in the web.
 
 ## Building the web version
 
@@ -35,8 +35,8 @@ This step is specifically tailored to the Qt-Creator IDE.
 > Dawn (in 2024) does not compile with MinGW! GCC might be possible, but is not tested (hence the Windows Requirement).
 
 ### Troubleshoot
-- MY CONFIGURATION TAKES FOREVER: Upon first cmake configuration DAWN aswell as SDL is being pulled, build and installed. This might take a while. (~10-40 min)
-- Dawn and SDL installation aswell as fetching the custom dawn port for emscripten now happens in the python scripts inside the respective folder. They get executed by the CMAKE-Setup. A change requires a reconfiguration of CMAKE aswell as the deletion of the directory in the `extern` directory.
+- MY CONFIGURATION TAKES FOREVER: Upon first cmake configuration DAWN as well as SDL is being pulled, build and installed. This might take a while. (~10-40 min)
+- Dawn and SDL installation as well as fetching the custom dawn port for emscripten now happens in the python scripts inside the respective folder. They get executed by the CMAKE-Setup. A change requires a reconfiguration of CMAKE as well as the deletion of the directory in the `extern` directory.
 - If you have issues with your currently installed Vulkan SDK you may try one or all of the following:
   - disable `DDAWN_FORCE_SYSTEM_COMPONENT_LOAD`
   - Try with a different DAWN backend
@@ -45,6 +45,6 @@ This step is specifically tailored to the Qt-Creator IDE.
 ### About DAWN Backends
 Per default we opt for an only Vulkan-Backend Build for two reasons:
 - Vulkan is probably the most supported Backend running on most devices
-- We have more knowledge about Vulkan which comes to play when we use GPU debugers
+- We have more knowledge about Vulkan which comes to play when we use GPU debuggers
 
-That being said you may enable different Backends in the `installDawn.py` script.
+That being said you may enable different Backends in the `install_dawn.py` script.

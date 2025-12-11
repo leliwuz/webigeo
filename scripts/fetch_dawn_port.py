@@ -3,21 +3,16 @@
 import argparse
 import sys
 import os
-import urllib.request
-import zipfile
-import shutil
 import tempfile
+import shutil
 
-
-def fail(msg):
-    print(f"---- ERROR (in fetchDawnPort.py): {msg}", file=sys.stderr)
-    sys.exit(1)
+from setup_utils import log, fail, download, extract_zip
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--extern-dir", required=True)
-    parser.add_argument("--dawn-version", required=True)
+    parser = argparse.ArgumentParser(description="Fetch Dawn Emscripten port package")
+    parser.add_argument("--extern-dir", required=True, help="External dependencies directory")
+    parser.add_argument("--dawn-version", required=True, help="Dawn version to fetch")
     args = parser.parse_args()
 
     extern_dir = os.path.abspath(args.extern_dir)
@@ -31,15 +26,9 @@ def main():
     zippath = os.path.join(tmp, zipname)
 
     try:
-        print("---- Downloading: ", url)
-        with urllib.request.urlopen(url) as r, open(zippath, "wb") as f:
-            shutil.copyfileobj(r, f)
+        download(url, zippath)
+        extract_zip(zippath, tmp)
 
-        print("---- Extracting zip file: ", zippath)
-        with zipfile.ZipFile(zippath, "r") as z:
-            z.extractall(tmp)
-
-        # find emdawnwebgpu_pkg folder
         found_pkg = None
         for root, dirs, _ in os.walk(tmp):
             if "emdawnwebgpu_pkg" in dirs:
@@ -50,15 +39,16 @@ def main():
             fail("emdawnwebgpu_pkg not found in the extracted Dawn package")
 
         if os.path.exists(pkg_dir):
+            log(f"Removing existing package directory: {pkg_dir}")
             shutil.rmtree(pkg_dir)
 
+        log(f"Moving package to {pkg_dir}")
         shutil.move(found_pkg, pkg_dir)
 
         if not os.path.exists(port_file):
             fail("emdawnwebgpu.port.py missing after installation")
 
-        print("---- Successfully fetched Dawn port:", pkg_dir)
-
+        log(f"Successfully fetched Dawn port to {pkg_dir}")
         return 0
 
     except Exception as e:

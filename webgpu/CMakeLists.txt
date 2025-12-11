@@ -67,7 +67,7 @@ if (EMSCRIPTEN)
 
         execute_process(
             COMMAND ${Python3_EXECUTABLE}
-                "${CMAKE_SOURCE_DIR}/scripts/fetchDawnPort.py"
+                "${CMAKE_SOURCE_DIR}/scripts/fetch_dawn_port.py"
                 --dawn-version "${ALP_DAWN_VERSION}"
                 --extern-dir "${ALP_EXTERN_DIR}"
             WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
@@ -97,7 +97,7 @@ else()
 
     # Ensure Dawn is installed
     if (NOT EXISTS "${ALP_DAWN_DIR}/install/${CMAKE_BUILD_TYPE}/lib/cmake/Dawn")
-        message(STATUS "Dawn installation missing - running installDawn.py...")
+        message(STATUS "Dawn installation missing - running install_dawn.py...")
 
         if (NOT DEFINED ALP_CMAKE_EXECUTABLE)
             find_program(ALP_CMAKE_EXECUTABLE cmake)
@@ -114,7 +114,7 @@ else()
         endif()
 
         execute_process(
-            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/installDawn.py"
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/install_dawn.py"
                 --dawn-version ${ALP_DAWN_VERSION}
                 --extern-dir "${ALP_EXTERN_DIR}"
                 --cmake-path "${ALP_CMAKE_EXECUTABLE}"
@@ -124,7 +124,7 @@ else()
         )
 
         if (NOT DAWN_RESULT EQUAL 0)
-            message(FATAL_ERROR "installDawn.py failed.")
+            message(FATAL_ERROR "install_dawn.py failed.")
         endif()
     endif()
 
@@ -136,7 +136,7 @@ else()
 
     # Ensure SDL is installed
     if (NOT EXISTS "${ALP_SDL_INSTALL_DIR}")
-        message(STATUS "SDL not found - running installSDL.py...")
+        message(STATUS "SDL not found - running install_sdl.py...")
 
         if (NOT DEFINED ALP_CMAKE_EXECUTABLE)
             find_program(ALP_CMAKE_EXECUTABLE cmake)
@@ -160,7 +160,7 @@ else()
         endif()
 
         execute_process(
-            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/installSDL.py"
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/install_sdl.py"
                 --install-prefix "${ALP_SDL_INSTALL_DIR}"
                 --cmake-path "${ALP_CMAKE_EXECUTABLE}"
                 --ninja-path "${ALP_NINJA_EXECUTABLE}"
@@ -169,7 +169,7 @@ else()
             RESULT_VARIABLE SDL_RESULT
         )
         if (NOT SDL_RESULT EQUAL 0)
-            message(FATAL_ERROR "installSDL.py failed.")
+            message(FATAL_ERROR "install_sdl.py failed.")
         endif()
     endif()
 
