@@ -52,6 +52,39 @@ set_target_properties(webgpu_app PROPERTIES
 target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine Qt::Core)
 target_include_directories(webgpu_app PRIVATE .)
 
+# Copy necessary DLLs to the output directory on Windows
+if (WIN32 AND NOT EMSCRIPTEN)
+    # Copy Qt DLLs
+    add_custom_command(TARGET webgpu_app POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:Qt6::Core>"
+        "$<TARGET_FILE_DIR:webgpu_app>"
+        COMMENT "Copying Qt6Core DLL"
+    )
+
+    # Copy SDL2 DLL
+    if (EXISTS "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl/bin/SDL2.dll")
+        add_custom_command(TARGET webgpu_app POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl/bin/SDL2.dll"
+            "$<TARGET_FILE_DIR:webgpu_app>"
+            COMMENT "Copying SDL2.dll"
+        )
+    endif()
+
+    # Use Qt's windeployqt to copy all necessary Qt dependencies
+    get_target_property(QMAKE_EXECUTABLE Qt6::qmake IMPORTED_LOCATION)
+    get_filename_component(QT_BIN_DIR "${QMAKE_EXECUTABLE}" DIRECTORY)
+    find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${QT_BIN_DIR}")
+
+    if(WINDEPLOYQT_EXECUTABLE)
+        add_custom_command(TARGET webgpu_app POST_BUILD
+            COMMAND "${WINDEPLOYQT_EXECUTABLE}" --no-translations "$<TARGET_FILE:webgpu_app>"
+            COMMENT "Running windeployqt for webgpu_app"
+        )
+    endif()
+endif()
+
 if (EMSCRIPTEN)
 
     target_link_options(webgpu_app PRIVATE
