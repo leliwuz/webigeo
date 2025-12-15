@@ -54,14 +54,6 @@ target_include_directories(webgpu_app PRIVATE .)
 
 # Copy necessary DLLs to the output directory on Windows
 if (WIN32 AND NOT EMSCRIPTEN)
-    # Copy Qt DLLs
-    add_custom_command(TARGET webgpu_app POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:Qt6::Core>"
-        "$<TARGET_FILE_DIR:webgpu_app>"
-        COMMENT "Copying Qt6Core DLL"
-    )
-
     # Copy SDL2 DLL
     if (EXISTS "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl/bin/SDL2.dll")
         add_custom_command(TARGET webgpu_app POST_BUILD
@@ -83,6 +75,21 @@ if (WIN32 AND NOT EMSCRIPTEN)
             COMMENT "Running windeployqt for webgpu_app"
         )
     endif()
+
+
+    # === INSTALL CONFIGURATION FOR NATIVE WINDOWS BUILD ===
+    install(TARGETS webgpu_app RUNTIME DESTINATION . BUNDLE DESTINATION .)
+    if (EXISTS "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl/bin/SDL2.dll")
+        install(FILES "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl/bin/SDL2.dll" DESTINATION .)
+    endif()
+    if(WINDEPLOYQT_EXECUTABLE)
+        install(CODE "
+            execute_process(
+                COMMAND \"${WINDEPLOYQT_EXECUTABLE}\" --no-translations \"\${CMAKE_INSTALL_PREFIX}/webgpu_app.exe\"
+            )
+        ")
+    endif()
+    # ================================================
 endif()
 
 if (EMSCRIPTEN)
@@ -131,5 +138,18 @@ if (EMSCRIPTEN)
         )
     endforeach()
 
-
+    # === INSTALL CONFIGURATION FOR WASM BUILD ===
+    set(WASM_OUTPUT_FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/webgpu_app.html
+        ${CMAKE_CURRENT_BINARY_DIR}/webgpu_app.js
+        ${CMAKE_CURRENT_BINARY_DIR}/webgpu_app.wasm
+        ${CMAKE_CURRENT_BINARY_DIR}/qtloader.js
+    )
+    foreach(SHELL_FILE ${SHELL_FILES})
+        get_filename_component(SHELL_FILE_NAME ${SHELL_FILE} NAME)
+        list(APPEND WASM_OUTPUT_FILES ${CMAKE_CURRENT_BINARY_DIR}/${SHELL_FILE_NAME})
+    endforeach()
+    install(FILES ${WASM_OUTPUT_FILES} DESTINATION .)
+    install(CODE "file(RENAME \"\${CMAKE_INSTALL_PREFIX}/webgpu_app.html\" \"\${CMAKE_INSTALL_PREFIX}/index.html\")")
+    # ================================================
 endif()
