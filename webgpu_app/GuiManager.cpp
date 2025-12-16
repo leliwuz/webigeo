@@ -22,11 +22,11 @@
 #include "TerrainRenderer.h"
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+#include <imgui_internal.h>
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
 #include <IconsFontAwesome5.h>
 #include <imnodes.h>
-#include <imgui_internal.h>
 #endif
 #include "nucleus/utils/image_loader.h"
 #include "util/dark_mode.h"

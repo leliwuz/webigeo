@@ -132,6 +132,8 @@ if (EMSCRIPTEN)
     foreach(SHELL_FILE ${SHELL_FILES})
         get_filename_component(SHELL_FILE_NAME ${SHELL_FILE} NAME)
         add_custom_command(TARGET webgpu_app POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E remove -f
+            ${CMAKE_CURRENT_BINARY_DIR}/${SHELL_FILE_NAME}
             COMMAND ${CMAKE_COMMAND} -E copy
             ${SHELL_FILE}
             ${CMAKE_CURRENT_BINARY_DIR}/${SHELL_FILE_NAME}

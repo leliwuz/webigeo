@@ -46,13 +46,15 @@
 #include <glm/gtx/string_cast.hpp>
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+#include "imgui.h"
+#include "imgui_internal.h"
 #ifndef __EMSCRIPTEN__
 #include "ImGuiFileDialog.h"
 #endif
 // TODO: Remove ImGuiFileDialog dependency on Web-build
-#include "imgui.h"
+
+
 #include <IconsFontAwesome5.h>
-#include <imgui_internal.h>
 #endif
 
 namespace webgpu_engine {
