@@ -24,7 +24,9 @@
 #include "ShaderModuleManager.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "compute/NodeGraphRenderer.h"
+#endif
 #include "compute/nodes/NodeGraph.h"
 #include "compute/nodes/RequestTilesNode.h"
 #include "nucleus/AbstractRenderWindow.h"
@@ -198,8 +200,10 @@ private:
     const webgpu::raii::TextureView* m_compute_overlay_texture_view = nullptr; // will be set to correct texture view after pipeline run completion
     const webgpu::raii::Sampler* m_compute_overlay_sampler = nullptr; // will be set to correct sampler after pipeline run completion
 
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     std::unique_ptr<compute::NodeGraphRenderer> m_node_graph_renderer;
     bool m_should_render_node_graph = false;
+#endif
 
     bool paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation, const std::string& unit = "");
 

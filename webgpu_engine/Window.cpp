@@ -34,9 +34,7 @@
 #include "nucleus/utils/image_loader.h"
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
-#include <IconsFontAwesome5.h>
 #include <QFile>
-#include <imgui_internal.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -53,7 +51,8 @@
 #endif
 // TODO: Remove ImGuiFileDialog dependency on Web-build
 #include "imgui.h"
-
+#include <IconsFontAwesome5.h>
+#include <imgui_internal.h>
 #endif
 
 namespace webgpu_engine {
@@ -447,6 +446,7 @@ void Window::rewire_buffer_to_texture_node()
 
 bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation, const std::string& unit)
 {
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     bool somethingChanged = false;
 
     static bool print_mode = false;
@@ -553,6 +553,9 @@ bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_inte
     }
 
     return somethingChanged;
+#else
+    return false;
+#endif
 }
 
 void Window::paint_compute_pipeline_gui()
@@ -1143,8 +1146,10 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         recreate_compose_bind_group();
     }
 
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     m_node_graph_renderer = std::make_unique<compute::NodeGraphRenderer>();
     m_node_graph_renderer->init(*m_compute_graph.get());
+#endif
 
     m_is_first_pipeline_run = true;
 }

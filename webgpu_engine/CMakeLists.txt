@@ -39,8 +39,6 @@ set(SOURCES
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp
     compute/GpuTileId.h compute/GpuTileId.cpp
     compute/RectangularTileRegion.h compute/RectangularTileRegion.cpp
-    compute/NodeGraphRenderer.h compute/NodeGraphRenderer.cpp
-    compute/NodeRenderer.h compute/NodeRenderer.cpp
     compute/nodes/Node.h compute/nodes/Node.cpp
     compute/nodes/SelectTilesNode.h compute/nodes/SelectTilesNode.cpp
     compute/nodes/RequestTilesNode.h compute/nodes/RequestTilesNode.cpp
@@ -65,6 +63,14 @@ set(SOURCES
     compute/nodes/LoadRegionAabbNode.h compute/nodes/LoadRegionAabbNode.cpp
     compute/nodes/util.h compute/nodes/util.cpp
 )
+
+# NodeGraphRenderer and NodeRenderer are only compiled when ImGui is enabled
+if (ALP_WEBGPU_APP_ENABLE_IMGUI)
+    list(APPEND SOURCES
+        compute/NodeGraphRenderer.h compute/NodeGraphRenderer.cpp
+        compute/NodeRenderer.h compute/NodeRenderer.cpp
+    )
+endif()
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
 
