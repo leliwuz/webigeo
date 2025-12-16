@@ -25,6 +25,9 @@ weBIGeo can be deployed to the web via emscripten and additionally we support na
    ```
 
 ### Configuration
+> [!IMPORTANT]
+> If you’re using Qt Creator, you can simply use the default kit *WebAssembly Qt 6.10.1 (multi-threaded)* - no additional setup is needed.
+
 Before building, you need to ensure the following paths are correctly configured in [CMakePresets.json](../CMakePresets.json):
 
 1. **Ninja**: Make sure Ninja is in your system PATH, OR update the `PATH` environment variable in the `emscripten-base` preset to point to your Ninja installation (e.g., `C:/Qt/Tools/Ninja`).
@@ -47,13 +50,13 @@ After building, you can use the `serve_wasm.py` script to serve the build files 
 * Microsoft Visual C++ Compiler 17.6 (aka. MSVC2022, comes with Visual Studio 2022)
 * cmake and ninja (come with Qt)
 
-> [!IMPORTANT]
-> Dawn (in 2024) does not compile with MinGW! GCC might be possible, but is not tested (hence the Windows Requirement).
-
 ### Configuration
+> [!IMPORTANT]
+> If you’re using Qt Creator, you can simply use the default kit *Desktop Qt 6.10.1 MSVC2022 (64-bit)* - no additional setup is needed.
+
 Before building, you need to ensure the following paths are correctly configured in [CMakePresets.json](../CMakePresets.json):
 
-1. **CMAKE_PREFIX_PATH**: Verify that the `CMAKE_PREFIX_PATH` in the `msvc-base` preset points to your actual Qt installation path (e.g., `C:/Qt/6.10.1/msvc2022_64`).
+1. **Qt6_DIR**: Verify that the `Qt6_DIR` in the `msvc-base` preset points to your actual Qt installation's CMake directory (e.g., `C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6`).
 
 ### Troubleshoot
 - MY CONFIGURATION TAKES FOREVER: Upon first cmake configuration DAWN as well as SDL is being pulled, build and installed. This might take a while. (~10-40 min)
@@ -86,6 +89,7 @@ The install directory is automatically configured in the CMake presets and will 
 The following development environments have been tested and are known to work with this project:
 
 - **Qt Creator 18** [recommended]
+  - With Qt Creator we recommend using the default Kits (see above)
 - **Visual Studio Code** with the following extensions:
   - [C/C++](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools)
   - [CMake Tools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools)
