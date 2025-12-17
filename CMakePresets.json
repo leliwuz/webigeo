@@ -37,7 +37,8 @@
       "description": "Debug build using MSVC compiler",
       "inherits": "msvc-base",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "/DQT_DEBUG"
       }
     },
     {
@@ -47,6 +48,26 @@
       "inherits": "msvc-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "msvc-debug-test",
+      "displayName": "MSVC Debug Tests (Windows)",
+      "description": "Debug build for unit tests using MSVC compiler",
+      "inherits": "msvc-debug",
+      "cacheVariables": {
+        "ALP_UNITTESTS": "ON",
+        "ALP_WEBGPU_APP": "OFF"
+      }
+    },
+    {
+      "name": "msvc-release-test",
+      "displayName": "MSVC Release Tests (Windows)",
+      "description": "Release build for unit tests using MSVC compiler",
+      "inherits": "msvc-release",
+      "cacheVariables": {
+        "ALP_UNITTESTS": "ON",
+        "ALP_WEBGPU_APP": "OFF"
       }
     },
     {
@@ -67,7 +88,8 @@
       "description": "Debug build for WebAssembly using Emscripten",
       "inherits": "emscripten-base",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-DQT_DEBUG"
       }
     },
     {
@@ -88,6 +110,14 @@
     {
       "name": "msvc-release",
       "configurePreset": "msvc-release"
+    },
+    {
+      "name": "msvc-debug-test",
+      "configurePreset": "msvc-debug-test"
+    },
+    {
+      "name": "msvc-release-test",
+      "configurePreset": "msvc-release-test"
     },
     {
       "name": "wasm-debug",

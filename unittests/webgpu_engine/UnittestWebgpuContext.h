@@ -1,6 +1,7 @@
 /*****************************************************************************
  * Alpine Renderer
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2025 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,11 +25,14 @@
 using namespace webgpu_engine;
 
 struct UnittestWebgpuContext {
-    static WGPURequiredLimits default_limits();
+    WGPULimits default_limits();
 
-    UnittestWebgpuContext(WGPURequiredLimits required_limits = default_limits());
+    UnittestWebgpuContext(bool use_default_limits = true, WGPULimits required_limits = {});
+
+    WGPUInstanceDescriptor instance_desc;
 
     WGPUInstance instance = nullptr;
+    WGPUSurface surface = nullptr;
     WGPUAdapter adapter = nullptr;
     WGPUDevice device = nullptr;
     WGPUQueue queue = nullptr;

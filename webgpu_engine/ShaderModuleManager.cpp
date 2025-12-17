@@ -180,6 +180,12 @@ std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_m
     return create_shader_module(m_device, filename, code);
 }
 
+std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module_for_code(const std::string& code, const std::string& label)
+{
+    const std::string preprocessed_code = preprocess(code);
+    return create_shader_module(m_device, label, preprocessed_code);
+}
+
 std::string ShaderModuleManager::preprocess(const std::string& code)
 {
     std::string preprocessed_code = code;

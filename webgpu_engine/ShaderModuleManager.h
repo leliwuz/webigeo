@@ -62,6 +62,7 @@ public:
     static std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(WGPUDevice device, const std::string& label, const std::string& code);
 
     std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module_for_file(const std::string& filename);
+    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module_for_code(const std::string& code, const std::string& label = "inline_shader");
 
 private:
     static std::string read_file_contents(const std::string& name);
