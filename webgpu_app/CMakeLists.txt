@@ -45,7 +45,7 @@ qt_add_executable(webgpu_app
 
 
 set_target_properties(webgpu_app PROPERTIES
-    WIN32_EXECUTABLE TRUE
+    WIN32_EXECUTABLE FALSE  # Set to FALSE to keep console attached on Windows
     MACOSX_BUNDLE TRUE
 )
 
