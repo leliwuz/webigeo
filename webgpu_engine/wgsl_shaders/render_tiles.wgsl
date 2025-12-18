@@ -150,14 +150,14 @@ fn compute_vertex(
     //TODO port this
 /*    if (curtain_vertex_id >= 0) {
         float curtain_height = CURTAIN_REFERENCE_HEIGHT;
-#if CURTAIN_HEIGHT_MODE == 1
+if CURTAIN_HEIGHT_MODE == 1
         float dist_factor = clamp(length(position) / 100000.0, 0.2, 1.0);
         curtain_height *= dist_factor;
-#endif
-#if CURTAIN_HEIGHT_MODE == 2
+endif
+if CURTAIN_HEIGHT_MODE == 2
         float zoom_factor = 1.0 - max(0.1, float(tile_id.z) / 25.f);
         curtain_height *= zoom_factor;
-#endif
+endif
         position.z = position.z - curtain_height;
     }
 */
