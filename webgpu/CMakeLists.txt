@@ -45,6 +45,7 @@ set(SOURCES
     util/VertexBufferInfo.h util/VertexBufferInfo.cpp
     util/VertexFormat.h
     util/string_cast.h util/string_cast.cpp
+    util/ShaderPreprocessor.h util/ShaderPreprocessor.cpp
 
     timing/GuiTimerManager.h timing/GuiTimerManager.cpp
     timing/TimerInterface.h timing/TimerInterface.cpp
