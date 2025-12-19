@@ -118,6 +118,18 @@ void ShaderPreprocessor::set_file_reader(std::function<std::string(const std::st
     m_file_reader = std::move(reader);
 }
 
+void ShaderPreprocessor::set_error_callback(std::function<void(const std::string&)> callback)
+{
+    m_error_callback = std::move(callback);
+}
+
+void ShaderPreprocessor::report_error(const std::string& message)
+{
+    if (m_error_callback) {
+        m_error_callback(message);
+    }
+}
+
 std::string ShaderPreprocessor::get_file_contents_with_cache(const std::string& name)
 {
     if (m_cache_enabled) {
@@ -128,7 +140,8 @@ std::string ShaderPreprocessor::get_file_contents_with_cache(const std::string& 
     }
 
     if (!m_file_reader) {
-        throw std::runtime_error("No file reader set for ShaderPreprocessor");
+        report_error("No file reader set for ShaderPreprocessor");
+        return "";
     }
 
     const auto file_contents = m_file_reader(name);
@@ -280,7 +293,8 @@ std::string ShaderPreprocessor::process_conditionals(const std::string& code, co
         } else if (std::regex_match(line, match, elif_regex)) {
             // #elif directive
             if (condition_stack.empty()) {
-                throw std::runtime_error("Shader preprocessing error: #elif without matching #if/#ifdef/#ifndef");
+                report_error("Shader preprocessing error: #elif without matching #if/#ifdef/#ifndef");
+                continue;
             }
 
             auto& state = condition_stack.top();
@@ -313,7 +327,8 @@ std::string ShaderPreprocessor::process_conditionals(const std::string& code, co
         } else if (std::regex_match(line, else_regex)) {
             // #else directive
             if (condition_stack.empty()) {
-                throw std::runtime_error("Shader preprocessing error: #else without matching #if/#ifdef/#ifndef");
+                report_error("Shader preprocessing error: #else without matching #if/#ifdef/#ifndef");
+                continue;
             }
 
             auto& state = condition_stack.top();
@@ -333,7 +348,8 @@ std::string ShaderPreprocessor::process_conditionals(const std::string& code, co
 
         } else if (std::regex_match(line, endif_regex)) {
             if (condition_stack.empty()) {
-                throw std::runtime_error("Shader preprocessing error: #endif without matching #if/#ifdef/#ifndef");
+                report_error("Shader preprocessing error: #endif without matching #if/#ifdef/#ifndef");
+                continue;
             }
 
             condition_stack.pop();
@@ -354,7 +370,7 @@ std::string ShaderPreprocessor::process_conditionals(const std::string& code, co
     }
 
     if (!condition_stack.empty()) {
-        throw std::runtime_error("Shader preprocessing error: unclosed #if/#ifdef/#ifndef directive");
+        report_error("Shader preprocessing error: unclosed #if/#ifdef/#ifndef directive");
     }
 
     return output.str();

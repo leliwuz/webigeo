@@ -28,6 +28,14 @@
 
 using namespace webgpu::util;
 
+// Helper function to set up error callback for tests
+inline void setup_error_callback(ShaderPreprocessor& preprocessor)
+{
+    preprocessor.set_error_callback([](const std::string& message) {
+        FAIL(message);
+    });
+}
+
 // Helper class to create a mock file system for testing
 class MockFileSystem {
 public:
@@ -52,6 +60,7 @@ private:
 TEST_CASE("ShaderPreprocessor - Include Statement Tests")
 {
     ShaderPreprocessor preprocessor;
+    setup_error_callback(preprocessor);
     MockFileSystem fs;
 
     SECTION("Simple include")
@@ -188,6 +197,7 @@ fn test() -> i32 {
 TEST_CASE("ShaderPreprocessor - Conditional Compilation Tests")
 {
     ShaderPreprocessor preprocessor;
+    setup_error_callback(preprocessor);
 
     SECTION("Simple ifdef - symbol defined")
     {
@@ -386,6 +396,7 @@ fn main() {
 TEST_CASE("ShaderPreprocessor - Combined Include and Conditional Tests")
 {
     ShaderPreprocessor preprocessor;
+    setup_error_callback(preprocessor);
     MockFileSystem fs;
 
     SECTION("Include file with conditionals")
@@ -448,31 +459,36 @@ fn main() {}
 
 TEST_CASE("ShaderPreprocessor - Error Handling")
 {
+    auto test_error = [](const std::string& input) {
+        ShaderPreprocessor preprocessor;
+        bool error_called = false;
+        preprocessor.set_error_callback([&error_called](const std::string&) {
+            error_called = true;
+        });
+        preprocessor.preprocess_code(input);
+        REQUIRE(error_called);
+    };
+
     SECTION("Unclosed ifdef")
     {
-        ShaderPreprocessor preprocessor;
-        std::string input = "fn main() {\n#ifdef FEATURE\n    let x = 1;\n}\n";
-        REQUIRE_THROWS_AS(preprocessor.preprocess_code(input), std::runtime_error);
+        test_error("fn main() {\n#ifdef FEATURE\n    let x = 1;\n}\n");
     }
 
     SECTION("endif without ifdef")
     {
-        ShaderPreprocessor preprocessor;
-        std::string input = "fn main() {\n    let x = 1;\n#endif\n}\n";
-        REQUIRE_THROWS_AS(preprocessor.preprocess_code(input), std::runtime_error);
+        test_error("fn main() {\n    let x = 1;\n#endif\n}\n");
     }
 
     SECTION("else without ifdef")
     {
-        ShaderPreprocessor preprocessor;
-        std::string input = "fn main() {\n#else\n    let x = 1;\n#endif\n}\n";
-        REQUIRE_THROWS_AS(preprocessor.preprocess_code(input), std::runtime_error);
+        test_error("fn main() {\n#else\n    let x = 1;\n#endif\n}\n");
     }
 }
 
 TEST_CASE("ShaderPreprocessor - Cache Management")
 {
     ShaderPreprocessor preprocessor;
+    setup_error_callback(preprocessor);
     MockFileSystem fs;
 
     fs.add_file("cacheable.wgsl", "const VALUE: i32 = 42;");
@@ -508,6 +524,7 @@ TEST_CASE("ShaderPreprocessor - Cache Management")
 TEST_CASE("ShaderPreprocessor - Define and Macro Replacement Tests")
 {
     ShaderPreprocessor preprocessor;
+    setup_error_callback(preprocessor);
 
     SECTION("#define with value and macro replacement")
     {
@@ -739,6 +756,7 @@ TEST_CASE("ShaderPreprocessor - Benchmark")
 
     BENCHMARK("Preprocess all shaders (cache enabled)") {
         static ShaderPreprocessor preprocessor;
+        setup_error_callback(preprocessor);
         preprocessor.set_file_reader(create_file_reader());
 
         size_t total = 0;

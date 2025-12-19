@@ -34,6 +34,11 @@ ShaderModuleManager::ShaderModuleManager(WGPUDevice device)
     m_preprocessor.set_file_reader([](const std::string& name) {
         return ShaderModuleManager::read_file_contents(name);
     });
+
+    // Set up error callback
+    m_preprocessor.set_error_callback([](const std::string& message) {
+        qFatal("%s", message.c_str());
+    });
 }
 
 void ShaderModuleManager::create_shader_modules()

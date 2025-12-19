@@ -98,6 +98,13 @@ public:
      */
     void set_file_reader(std::function<std::string(const std::string&)> reader);
 
+    /**
+     * Sets the error callback. Called when a preprocessing error occurs.
+     * The preprocessor will try to continue processing after an error when possible.
+     * The callback can terminate the program if desired (e.g., by calling qFatal).
+     */
+    void set_error_callback(std::function<void(const std::string&)> callback);
+
 private:
     std::string get_file_contents_with_cache(const std::string& name);
     std::string process_defines(const std::string& code, std::map<std::string, std::string>& local_defines);
@@ -106,10 +113,13 @@ private:
     std::string replace_macros(const std::string& code, const std::map<std::string, std::string>& local_defines);
     void initialize_platform_defines();
 
+    void report_error(const std::string& message);
+
 private:
     std::map<std::string, std::string> m_shader_name_to_code;  // Cache of file contents
     std::map<std::string, std::string> m_global_defines;       // Global preprocessor symbols and their values (persist across calls, "1" if no value specified)
     std::function<std::string(const std::string&)> m_file_reader; // Callback for reading files
+    std::function<void(const std::string&)> m_error_callback;   // Callback for error reporting
     bool m_cache_enabled = true;
 };
 
