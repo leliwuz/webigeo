@@ -3,6 +3,7 @@
  * Copyright (C) 2024 Adam Celarek
  * Copyright (C) 2024 Patrick Komon
  * Copyright (C) 2025 Markus Rampp
+ * Copyright (C) 2025 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +21,10 @@
 
 #include "util/normals_util.wgsl"
 #include "util/color_mapping.wgsl"
+
+#define USE_ROUGHNESS_FILTERING 1
+#define ROUGHNESS_THRESHOLD 0.01
+
 
 // input
 @group(0) @binding(0) var<uniform> settings: ReleasePointSettings;
@@ -41,7 +46,7 @@ fn should_paint(pos: vec2u) -> bool {
     return (pos.x % settings.sampling_interval.x == 0) && (pos.y % settings.sampling_interval.y == 0);
 }
 
-
+#if USE_ROUGHNESS_FILTERING 1
 fn get_roughness(id: vec2u) -> f32 {
     // according to doi:10.5194/nhess-16-2211-2016
     if (id.x == 0 || id.y == 0 || id.x >= textureDimensions(normals_texture).x - 1 || id.y >= textureDimensions(normals_texture).y - 1) {
@@ -69,8 +74,8 @@ fn get_roughness(id: vec2u) -> f32 {
     let roughness = 1 - r_magnitude / 9.0;
     return roughness; // returns 0 for flat terrain, 1 for very rough terrain
 }
+#endif
 
-const ROUGHNESS_THRESHOLD = 0.01;  // TODO is this high enough?
 @compute @workgroup_size(16, 16, 1)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     // id.xy in [0, ceil(texture_dimensions(normals_texture).xy / workgroup_size.xy) - 1]
@@ -86,9 +91,13 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let normal = textureLoad(normals_texture, tex_pos, 0).xyz * 2 - 1;
     let slope_angle = get_slope_angle(normal); // slope angle in rad (0 flat, pi/2 vertical)
 
+#if USE_ROUGHNESS_FILTERING 1
     let roughness = get_roughness(tex_pos);
 
     if (slope_angle < settings.min_slope_angle || slope_angle > settings.max_slope_angle || !should_paint(tex_pos) || roughness > ROUGHNESS_THRESHOLD) {
+#else
+    if (slope_angle < settings.min_slope_angle || slope_angle > settings.max_slope_angle || !should_paint(tex_pos)) {
+#endif
         textureStore(release_points_texture, tex_pos, vec4f(0, 0, 0, 0));
     } else {
         let color = color_mapping_bergfex(slope_angle / (PI / 2));
