@@ -20,6 +20,7 @@
 
 # option to enable/disable imgui
 option(ALP_WEBGPU_APP_ENABLE_IMGUI "Enable imgui" ON)
+option(ALP_ENABLE_WGSL_MINIFICATION "Minify WGSL shaders to reduce size" OFF)
 
 project(alpine-renderer-webgpu_engine LANGUAGES C CXX)
 
@@ -74,12 +75,6 @@ endif()
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
 
-if (EMSCRIPTEN AND CMAKE_BUILD_TYPE STREQUAL "Release")
-    option(ALP_ENABLE_WGSL_MINIFICATION "Minify WGSL shaders to reduce size" ON)
-else()
-    option(ALP_ENABLE_WGSL_MINIFICATION "Minify WGSL shaders to reduce size" OFF)
-endif()
-
 if (ALP_ENABLE_WGSL_MINIFICATION)
     set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/wgsl_shaders")
     set(SHADER_MINIFIED_DIR "${CMAKE_CURRENT_BINARY_DIR}/wgsl_shaders_minified")
@@ -106,6 +101,7 @@ if (ALP_ENABLE_WGSL_MINIFICATION)
     add_dependencies(webgpu_engine minify_shaders)
 
     set(SHADER_BASE_DIR "${SHADER_MINIFIED_DIR}")
+    target_compile_definitions(webgpu_engine PUBLIC ALP_ENABLE_WGSL_MINIFICATION)
 else()
     set(SHADER_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/wgsl_shaders")
 endif()

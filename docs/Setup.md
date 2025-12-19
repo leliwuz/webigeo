@@ -8,6 +8,7 @@ weBIGeo can be deployed to the web via emscripten and additionally we support na
 | **msvc-release** | MSVC Release build for Windows (native) |
 | **wasm-debug** | WebAssembly Debug build |
 | **wasm-release** | WebAssembly Release build |
+| **wasm-publish** | WebAssembly Production build with minified shaders and no debug output |
 
 ## Building the web version
 
@@ -83,7 +84,7 @@ cmake --build build/<preset-name> --target install
 
 The install directory is automatically configured in the CMake presets and will be located at:
 - Native builds: `install/msvc-debug` or `install/msvc-release`
-- Web builds: `install/wasm-debug` or `install/wasm-release`
+- Web builds: `install/wasm-debug`, `install/wasm-release`, or `install/wasm-publish`
 
 ## Tested Coding Environments
 The following development environments have been tested and are known to work with this project:

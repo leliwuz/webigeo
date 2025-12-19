@@ -144,16 +144,37 @@ std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_m
 
 std::string ShaderModuleManager::read_file_contents(const std::string& name)
 {
-#ifdef __EMSCRIPTEN__
-    const auto path = QRC_PREFIX / name; // use qrc file prefix for emscripten builds
+    static bool local_available = false;
+    static bool initialized = false;
+
+    if (!initialized) {
+        initialized = true;
+
+#if defined(ALP_ENABLE_WGSL_MINIFICATION) || defined(__EMSCRIPTEN__)
+        // If minification is enabled or building for Emscripten, always use embedded shaders
+        local_available = false;
+        qInfo("Using embedded shaders");
 #else
-    const auto path = LOCAL_PREFIX / name; // use external (local) file path for native builds
+        // For native builds, try local shaders first
+        const auto test_path = LOCAL_PREFIX / name;
+        QFile test_file(test_path);
+        if (test_file.exists()) {
+            local_available = true;
+            qInfo("Using local shaders from: %s", LOCAL_PREFIX.string().c_str());
+        } else {
+            local_available = false;
+            qInfo("Local shaders not found, using embedded shaders");
+        }
 #endif
+    }
+
+    const auto path = local_available ? (LOCAL_PREFIX / name) : (QRC_PREFIX / name);
     auto file = QFile(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qFatal("Could not open shader file %s", path.string().c_str());
     }
-    return file.readAll().toStdString();
+    auto contents = file.readAll();
+    return contents.toStdString();
 }
 
 std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module_for_file(const std::string& name)

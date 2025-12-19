@@ -9,21 +9,26 @@ import time
 import threading
 from pathlib import Path
 
+SUPPORTED_TARGETS = [
+    "wasm-debug",
+    "wasm-release",
+    "wasm-publish",
+]
+
 
 def auto_detect_build_type(project_root):
-    debug_dir = project_root / "build" / "wasm-debug" / "webgpu_app"
-    release_dir = project_root / "build" / "wasm-release" / "webgpu_app"
+    build_dirs = {}
 
-    if debug_dir.exists() and release_dir.exists():
-        debug_time = debug_dir.stat().st_mtime
-        release_time = release_dir.stat().st_mtime
-        return "release" if release_time > debug_time else "debug"
-    elif debug_dir.exists():
-        return "debug"
-    elif release_dir.exists():
-        return "release"
-    else:
+    for target in SUPPORTED_TARGETS:
+        target_dir = project_root / "build" / target / "webgpu_app"
+        if target_dir.exists():
+            build_dirs[target] = target_dir.stat().st_mtime
+
+    if not build_dirs:
         return None
+
+    most_recent_target = max(build_dirs.items(), key=lambda x: x[1])[0]
+    return most_recent_target
 
 
 def get_html_file(build_dir):
@@ -55,13 +60,10 @@ def serve_wasm(port=8000):
         build_type = auto_detect_build_type(project_root)
         if build_type is None:
             print("Error: No WebAssembly build found.")
-            print("\nBuild the project first:")
-            print("  cmake --preset wasm-debug")
-            print("  cmake --build --preset wasm-debug")
             sys.exit(1)
 
-        print(f"Auto-detected build type: {build_type}")
-        build_dir = project_root / "build" / f"wasm-{build_type}" / "webgpu_app"
+        print(f"Auto-detected build target: {build_type}")
+        build_dir = project_root / "build" / build_type / "webgpu_app"
 
         html_file = get_html_file(build_dir)
         if not html_file:
