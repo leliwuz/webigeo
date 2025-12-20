@@ -175,10 +175,11 @@ void TerrainRenderer::poll_events()
 
 void TerrainRenderer::render() {
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
-    m_cputimer->start();
 
     WGPUSurfaceTexture surface_texture;
     wgpuSurfaceGetCurrentTexture(m_surface, &surface_texture);
+
+    m_cputimer->start();
 
     if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal
         && surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
@@ -244,13 +245,13 @@ void TerrainRenderer::render() {
     if (webgpu::isTimingSupported())
         m_gputimer->resolve();
 
+    m_cputimer->stop();
+
 #ifndef __EMSCRIPTEN__
     // Surface present in the WEB is handled by the browser!
     wgpuSurfacePresent(m_surface);
     wgpuDeviceTick(m_device);
 #endif
-
-    m_cputimer->stop();
 }
 
 void TerrainRenderer::start() {
