@@ -28,14 +28,15 @@ void write_timings_to_json_file(const NodeGraph& node_graph, const std::filesyst
 {
     QJsonObject object;
     for (const auto& [name, node] : node_graph.get_nodes()) {
-        object[QString::fromStdString(name)] = node.get()->last_run_duration();
+        object[QString::fromStdString(name)] = node.get()->get_last_run_duration_in_ms();
     }
 
     QJsonDocument doc;
     doc.setObject(object);
 
     QFile output_file(output_path);
-    output_file.open(QIODevice::WriteOnly);
+    if (!output_file.open(QIODevice::WriteOnly))
+        qFatal("Failed to open timings file for writing: %s", output_path.string().c_str());
     output_file.write(doc.toJson());
     output_file.close();
 }

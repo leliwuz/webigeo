@@ -17,45 +17,19 @@
  *****************************************************************************/
 
 #include "WebInterop.h"
-#include "webgpu/webgpu_interface.hpp"
 #include <emscripten.h>
 #include <emscripten/em_asm.h>
 #include <emscripten/html5.h>
 #include <qdebug.h>
 
-void global_mouse_button_event(int button, int action, int mods, double xpos, double ypos)
-{
-    WebInterop::_mouse_button_event(button, action, mods, xpos, ypos);
-}
-
-void global_mouse_position_event(int button, double xpos, double ypos) { WebInterop::_mouse_position_event(button, xpos, ypos); }
-
 void global_file_uploaded(const char* filename, const char* tag) { WebInterop::_file_uploaded(filename, tag); }
-
-void WebInterop::_mouse_button_event(int button, int action, int mods, double xpos, double ypos)
-{
-    if (webgpu::isSleeping()) {
-        qWarning() << "Mouse button event while sleeping will be ignored";
-        return;
-    }
-    emit instance().mouse_button_event(button, action, mods, xpos, ypos);
-}
-
-void WebInterop::_mouse_position_event([[maybe_unused]] int button, double xpos, double ypos)
-{
-    if (webgpu::isSleeping()) {
-        qWarning() << "Mouse position event while sleeping will be ignored";
-        return;
-    }
-    emit instance().mouse_position_event(xpos, ypos);
-}
 
 void WebInterop::_file_uploaded(const char* filename, const char* tag)
 {
     std::string filename_str(filename);
     std::string tag_str(tag);
     qDebug() << "File uploaded: " << filename_str << " with tag: " << tag_str;
-    emit instance().file_uploaded(filename_str, tag_str);
+    emit WebInterop::instance().file_uploaded(filename_str, tag_str);
 }
 
 void WebInterop::open_file_dialog(const std::string& filter, const std::string& tag)

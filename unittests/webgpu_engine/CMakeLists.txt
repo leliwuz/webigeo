@@ -22,9 +22,30 @@ project(alpine-renderer-unittests_webgpu_engine LANGUAGES CXX)
 
 alp_add_unittest(unittests_webgpu_engine
     UnittestWebgpuContext.h UnittestWebgpuContext.cpp
-    test_GpuHashMap.cpp
     test_GpuShaderFunctions.cpp
+    test_ShaderPreprocessor.cpp
 )
 
 target_link_libraries(unittests_webgpu_engine PUBLIC webgpu_engine)
+
+# Copy necessary DLLs to the output directory on Windows
+if (WIN32 AND NOT EMSCRIPTEN)
+    # Copy Qt DLLs
+    add_custom_command(TARGET unittests_webgpu_engine POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:Qt6::Core>"
+        "$<TARGET_FILE_DIR:unittests_webgpu_engine>"
+        COMMENT "Copying Qt6Core DLL to unittests"
+    )
+
+    # Copy SDL2 DLL
+    if (EXISTS "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl/bin/SDL2.dll")
+        add_custom_command(TARGET unittests_webgpu_engine POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl/bin/SDL2.dll"
+            "$<TARGET_FILE_DIR:unittests_webgpu_engine>"
+            COMMENT "Copying SDL2.dll to unittests"
+        )
+    endif()
+endif()
 

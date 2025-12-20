@@ -33,8 +33,8 @@ void resolve_relative_paths(webigeo_eval::Settings& settings, std::filesystem::p
     if (std::filesystem::path(settings.heightmap_texture_path).is_relative()) {
         settings.heightmap_texture_path = (settings_dir / settings.heightmap_texture_path).string();
     }
-    if (std::filesystem::path(settings.release_points_texture_path).is_relative()) {
-        settings.release_points_texture_path = (settings_dir / settings.release_points_texture_path).string();
+    if (std::filesystem::path(settings.release_cells_texture_path).is_relative()) {
+        settings.release_cells_texture_path = (settings_dir / settings.release_cells_texture_path).string();
     }
     if (std::filesystem::path(settings.output_dir_path).is_relative()) {
         settings.output_dir_path = (settings_dir / settings.output_dir_path).string();

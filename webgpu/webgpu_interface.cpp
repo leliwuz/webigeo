@@ -62,7 +62,6 @@
 #include <emscripten/val.h>
 #else
 // include Dawn only for non-emscripten build
-#include <dawn/dawn_proc.h>
 #include <dawn/native/DawnNative.h>
 #include <thread>
 #endif

@@ -18,6 +18,7 @@
 #pragma once
 
 #include <QObject>
+#include <emscripten.h>
 #include <glm/glm.hpp>
 #include <webgpu/webgpu.h>
 
@@ -27,9 +28,8 @@
 // Otherwise we ended up with issues when functions are called from js event loop inside the WASM core.
 // https://github.com/weBIGeo/webigeo/issues/25
 extern "C" {
-[[maybe_unused]] void global_mouse_button_event(int button, int action, int mods, double xpos, double ypos);
-[[maybe_unused]] void global_mouse_position_event(int button, double xpos, double ypos);
-[[maybe_unused]] void global_file_uploaded(const char* filename, const char* tag);
+EMSCRIPTEN_KEEPALIVE
+void global_file_uploaded(const char* filename, const char* tag);
 }
 
 // The WebInterop class acts as bridge between the C++ code and the JavaScript code.
@@ -60,9 +60,6 @@ public:
 
 signals:
     void body_size_changed(glm::uvec2 size);
-
-    void mouse_button_event(int button, int action, int mods, double xpos, double ypos);
-    void mouse_position_event(double xpos, double ypos);
 
     void file_uploaded(const std::string& filename, const std::string& tag);
 

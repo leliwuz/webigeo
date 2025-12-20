@@ -33,33 +33,6 @@ class WeBIGeoHacks {
     if (event.key === 'Dead') this.toggleLog();
   }
 
-  // deprecated
-  /*
-  async handleMousedownEvent(event) {
-    const jsButtonToEmButton = { 0: 0, 1: 2, 2: 1, 3: 3, 4: 4 };
-    this.logWrapper.classList.add('noselect');
-    await this.eminstance.ccall("global_mouse_button_event", null,
-      ["number", "number", "number", "number", "number"],
-      [jsButtonToEmButton[event.button], 1, 0, event.clientX, event.clientY],
-      { async: true });
-    document.onmousemove = async (event) => {
-      await this.eminstance.ccall("global_mouse_position_event", null,
-        ["number", "number", "number"],
-        [jsButtonToEmButton[event.button], event.clientX, event.clientY],
-        { async: true });
-    };
-    document.onmouseup = async () => {
-      await this.eminstance.ccall("global_mouse_button_event", null,
-        ["number", "number", "number", "number", "number"],
-        [jsButtonToEmButton[event.button], 0, 0, event.clientX, event.clientY],
-        { async: true });
-      document.onmousemove = null;
-      if (this.webgpuCanvas.releaseCapture) { this.webgpuCanvas.releaseCapture(); }
-      this.logWrapper.classList.remove('noselect');
-    };
-    if (this.webgpuCanvas.setCapture) { this.webgpuCanvas.setCapture(); }
-  }*/
-
   async setEminstance(eminstance) {
     this.eminstance = eminstance;
     this.debugBuild = eminstance.hasOwnProperty("getCallStack") || eminstance.hasOwnProperty("getCallstack");

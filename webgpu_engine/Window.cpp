@@ -46,12 +46,15 @@
 #include <glm/gtx/string_cast.hpp>
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+#include "imgui.h"
+#include "imgui_internal.h"
 #ifndef __EMSCRIPTEN__
 #include "ImGuiFileDialog.h"
 #endif
 // TODO: Remove ImGuiFileDialog dependency on Web-build
-#include "imgui.h"
 
+
+#include <IconsFontAwesome5.h>
 #endif
 
 namespace webgpu_engine {
@@ -101,7 +104,6 @@ void Window::initialise_gpu()
     m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
     m_compute_overlay_dummy_texture = create_overlay_texture(1, 1);
 
-    init_compute_pipeline_presets();
     create_and_set_compute_pipeline(ComputePipelineType::AVALANCHE_TRAJECTORIES, false);
 
     qInfo() << "gpu_ready_changed";
@@ -212,7 +214,7 @@ void Window::paint_gui()
             for (size_t i = 0; i < overlays.size(); i++) {
                 bool isSelected = ((size_t)currentItem == i);
                 if (ImGui::Selectable(overlays[i].first.c_str(), isSelected)) {
-                    currentItem = i;
+                    currentItem = int(i);
                     m_needs_redraw = true;
                 }
                 if (isSelected)
@@ -446,6 +448,7 @@ void Window::rewire_buffer_to_texture_node()
 
 bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation, const std::string& unit)
 {
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     bool somethingChanged = false;
 
     static bool print_mode = false;
@@ -552,6 +555,9 @@ bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_inte
     }
 
     return somethingChanged;
+#else
+    return false;
+#endif
 }
 
 void Window::paint_compute_pipeline_gui()
@@ -611,22 +617,13 @@ void Window::paint_compute_pipeline_gui()
             for (size_t i = 0; i < overlays.size(); i++) {
                 bool is_selected = ((size_t)overlays_current_item == i);
                 if (ImGui::Selectable(overlays[i].first.c_str(), is_selected)) {
-                    overlays_current_item = i;
+                    overlays_current_item = int(i);
                     create_and_set_compute_pipeline(overlays[i].second);
                 }
                 if (is_selected)
                     ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
-        }
-
-        if (ImGui::Button(m_should_render_node_graph ? "Hide node graph" : "Show node graph", ImVec2(250, 20))) {
-            m_should_render_node_graph = !m_should_render_node_graph;
-        }
-
-        // render node graph
-        if (m_should_render_node_graph) {
-            m_node_graph_renderer->render();
         }
 
         if (ImGui::TreeNodeEx("Pipeline-specific settings", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -762,12 +759,12 @@ void Window::paint_compute_pipeline_gui()
                             { "SamosAt", 3 },
                             { "None", 4 },
                         };
-                        const char* current_item_label = friction_model[friction_model_current_item].first.c_str();
-                        if (ImGui::BeginCombo("Friction model", current_item_label)) {
+                        const char* current_item_label_friction = friction_model[friction_model_current_item].first.c_str();
+                        if (ImGui::BeginCombo("Friction model", current_item_label_friction)) {
                             for (size_t i = 0; i < friction_model.size(); i++) {
                                 bool is_selected = ((size_t)friction_model_current_item == i);
                                 if (ImGui::Selectable(friction_model[i].first.c_str(), is_selected)) {
-                                    friction_model_current_item = i;
+                                    friction_model_current_item = int(i);
                                     m_compute_pipeline_settings.friction_model_type = friction_model[i].second;
                                     update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
                                 }
@@ -902,12 +899,12 @@ void Window::paint_compute_pipeline_gui()
                     { "None", 0 },
                     { "FlowPy (Alpha)", 2 },
                 };
-                const char* current_item_label = runout_models[runout_models_current_item].first.c_str();
-                if (ImGui::BeginCombo("Runout model", current_item_label)) {
+                const char* current_item_label_model = runout_models[runout_models_current_item].first.c_str();
+                if (ImGui::BeginCombo("Runout model", current_item_label_model)) {
                     for (size_t i = 0; i < runout_models.size(); i++) {
                         bool is_selected = ((size_t)runout_models_current_item == i);
                         if (ImGui::Selectable(runout_models[i].first.c_str(), is_selected)) {
-                            runout_models_current_item = i;
+                            runout_models_current_item = int(i);
                             m_compute_pipeline_settings.friction_model_type = runout_models[i].second;
                             update_settings_and_rerun_pipeline();
                         }
@@ -1053,6 +1050,36 @@ void Window::paint_compute_pipeline_gui()
             ImGui::TreePop();
         }
     }
+
+    {
+        ImVec2 button_pos(10, ImGui::GetIO().DisplaySize.y - 48 * 2 - 40 - 10);
+        ImGui::SetNextWindowPos(button_pos, ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.5f);
+        ImGui::SetNextWindowSize(ImVec2(48, 48));
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+
+        ImGui::Begin("ToggleGraphRenderWindow", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // fully transparent
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // black with alpha 0.2
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // same for active
+
+        if (ImGui::Button(ICON_FA_NETWORK_WIRED "###ToggleGraphRenderer", ImVec2(48, 48))) {
+            m_should_render_node_graph = !m_should_render_node_graph;
+        }
+
+        ImGui::PopStyleColor(3);
+        ImGui::End();
+        ImGui::PopStyleVar();
+    }
+
+    // render node graph
+    if (m_should_render_node_graph) {
+        m_node_graph_renderer->render();
+    }
+
 #endif
 }
 
@@ -1121,8 +1148,10 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         recreate_compose_bind_group();
     }
 
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     m_node_graph_renderer = std::make_unique<compute::NodeGraphRenderer>();
     m_node_graph_renderer->init(*m_compute_graph.get());
+#endif
 
     m_is_first_pipeline_run = true;
 }
@@ -1381,45 +1410,6 @@ void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
     } else {
         qWarning() << "No region selected. Please load track.";
     }
-}
-
-void Window::init_compute_pipeline_presets()
-{
-    ComputePipelineSettings default_values;
-    ComputePipelineSettings preset_a = {
-        .target_region = {}, // select tiles node
-        .zoomlevel = 18,
-        .num_steps = 512u,
-        .step_length = 0.1f,
-        .sync_snow_settings_with_render_settings = true, // snow node
-        .snow_settings = compute::nodes::ComputeSnowNode::SnowSettingsUniform(), // snow node
-        .release_point_interval = 16, // trajectories node
-        .perla = {},
-    };
-    ComputePipelineSettings preset_b = {
-        .target_region = {}, // select tiles node
-        .zoomlevel = 18,
-        .num_steps = 2048u,
-        .step_length = 0.1f,
-        .sync_snow_settings_with_render_settings = true, // snow node
-        .snow_settings = compute::nodes::ComputeSnowNode::SnowSettingsUniform(), // snow node
-        .release_point_interval = 16, // trajectories node
-        .perla = {},
-    };
-
-    m_compute_pipeline_presets.push_back(default_values);
-    m_compute_pipeline_presets.push_back(preset_a);
-    m_compute_pipeline_presets.push_back(preset_b);
-}
-
-void Window::apply_compute_pipeline_preset(size_t preset_index)
-{
-    assert(preset_index < m_compute_pipeline_presets.size());
-
-    // replace all parameters except selected region
-    const auto old_region = m_compute_pipeline_settings.target_region;
-    m_compute_pipeline_settings = m_compute_pipeline_presets.at(preset_index);
-    m_compute_pipeline_settings.target_region = old_region;
 }
 
 // Equivalent of std::bit_width that is available from C++20 onward

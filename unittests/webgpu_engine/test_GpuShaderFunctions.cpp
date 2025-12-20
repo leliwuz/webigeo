@@ -36,10 +36,13 @@ TEST_CASE("encoder functions")
 
     SECTION("octahedron normal encoding")
     {
+        // Tests octahedron normal encoding/decoding by generating 214 test normals (14 edge cases + 200 random),
+        // encoding them to 2x16-bit integers via compute shader, decoding back, and verifying each decoded
+        // normal is within epsilon of the original.
         const int random_normals_count = 200;
 
         const char* wgsl_single_thread_octahedron_test = R"(
-            #include "encoder.wgsl"
+            #include "util/encoder.wgsl"
 
             @group(0) @binding(0) var<storage, read_write> input_buffer: array<vec4f>;
             @group(0) @binding(1) var<storage, read_write> output_buffer: array<u32>;
@@ -48,16 +51,20 @@ TEST_CASE("encoder functions")
             fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
                 let input_size = u32(input_buffer[0].w);
 
+                // Initialize index 0 as success (it contains metadata, not a normal)
+                output_buffer[0] = 1u;
+
                 // Go through all normals and encode/decode them and see if the result is similar
-                // Write to the output_buffer a 1 if the encoding/decoding was not successfull, otherwise 0
+                // Write to the output_buffer a 1 if the encoding/decoding was successful, otherwise 0
                 for (var i: u32 = 1u; i < input_size; i++) {
                     let normal = input_buffer[i].xyz;
                     let encoded = octNormalEncode2u16(normal);
                     let decoded = octNormalDecode2u16(encoded);
 
-                    // Check if the decoded normal is approximately equal to the original normal
-                    if (length(normal - decoded) > 0.001) { // Threshold for floating point comparison
-                        output_buffer[i] = 1u;
+                    if (length(normal - decoded) <= 0.001) { // Threshold for floating point comparison
+                        output_buffer[i] = 1u; // Success
+                    } else {
+                        output_buffer[i] = 0u; // Failure
                     }
                 }
             }
@@ -76,8 +83,10 @@ TEST_CASE("encoder functions")
             }
 
             // Normalize and write to buffer data array. Vec4 is used as vec3 causes alignment issues! Again: NEVER USE VEC3
+            // Store the total count in the w component of all elements
+            const float total_count = static_cast<float>(testNormals.size());
             for (size_t i = 0; i < testNormals.size(); i++) {
-                test_normals_buffer_data.push_back(glm::vec4(glm::normalize(testNormals[i]), test_normals_buffer_data.size()));
+                test_normals_buffer_data.push_back(glm::vec4(glm::normalize(testNormals[i]), total_count));
             }
         }
 
@@ -121,7 +130,7 @@ TEST_CASE("encoder functions")
 
         // ==== CREATE SHADER MODULE AND PIPELINE ====
         std::unique_ptr<webgpu::raii::ShaderModule> compute_shader_module
-            = context.shader_module_manager->create_shader_module_for_file(wgsl_single_thread_octahedron_test);
+            = context.shader_module_manager->create_shader_module_for_code(wgsl_single_thread_octahedron_test, "oct shader");
 
         auto compute_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(
             context.device, *compute_shader_module, std::vector<const webgpu::raii::BindGroupLayout*> { compute_bind_group_layout.get() });
@@ -136,33 +145,42 @@ TEST_CASE("encoder functions")
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "octahedron test command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "octahedron test command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(context.queue, 1, &command);
         wgpuCommandBufferRelease(command);
 
         // ==== WAIT FOR THE WORK TO BE DONE AND FOR BUFFERS TO BE MAPPED ====
         bool done = false;
-        wgpuQueueOnSubmittedWorkDone(
-            context.queue,
-            []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-                if (status != WGPUQueueWorkDoneStatus_Success) {
-                    std::cerr << "Work done failed" << std::endl;
-                }
-                *reinterpret_cast<bool*>(user_data) = true;
-            },
-            &done);
-        webgpu::waitForFlag(context.device, &done);
+        WGPUQueueWorkDoneStatus work_done_status = WGPUQueueWorkDoneStatus_Success;
+        const auto on_work_done = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata1, void* userdata2) {
+            *reinterpret_cast<WGPUQueueWorkDoneStatus*>(userdata2) = status;
+            *reinterpret_cast<bool*>(userdata1) = true;
+        };
+
+        WGPUQueueWorkDoneCallbackInfo callback_info {
+            .nextInChain = nullptr,
+            .mode = WGPUCallbackMode_AllowProcessEvents,
+            .callback = on_work_done,
+            .userdata1 = &done,
+            .userdata2 = &work_done_status,
+        };
+
+        WGPUFuture work_done_future = wgpuQueueOnSubmittedWorkDone(context.queue, callback_info);
+        WGPUFutureWaitInfo wait_info { .future = work_done_future, .completed = false };
+        WGPUWaitStatus wait_status = wgpuInstanceWaitAny(context.instance, 1, &wait_info, 1000 * 1000 * 1000);
+        REQUIRE(wait_status == WGPUWaitStatus_Success);
+        REQUIRE(work_done_status == WGPUQueueWorkDoneStatus_Success);
 
         std::vector<uint32_t> output;
-        output_buffer->read_back_sync(context.device, output);
+        output_buffer->read_back_sync(context.instance, context.device, output);
         REQUIRE(output.size() == test_normals_buffer_data.size());
 
         int failed_normals = 0;
         for (size_t i = 0; i < output.size(); i++) {
-            if (output[i] != 0) {
+            if (output[i] != 1) {
                 failed_normals++;
-                std::cout << "Octahedron encoding failed with vector at index " << i << ": " << glm::to_string(glm::vec3(test_normals_buffer_data[i])) << std::endl;
+                //std::cout << "Normal encoding/decoding failed for normal index " << i << ": " << glm::to_string(glm::vec3(test_normals_buffer_data[i])) << std::endl;
             }
         }
         CHECK(failed_normals == 0); // None of the normals should have failed the encoding/decoding process

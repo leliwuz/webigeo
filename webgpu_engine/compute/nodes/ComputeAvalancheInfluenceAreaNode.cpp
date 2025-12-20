@@ -42,10 +42,12 @@ ComputeAvalancheInfluenceAreaNode::ComputeAvalancheInfluenceAreaNode(
     , m_device { device }
     , m_queue(wgpuDeviceGetQueue(m_device))
     , m_capacity { capacity }
-    , m_tile_bounds(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "avalanche influence area compute, tile bounds buffer")
-    , m_input_tile_ids(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "avalanche influence area compute, tile id buffer")
+    , m_tile_bounds(
+          device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "avalanche influence area compute, tile bounds buffer")
+    , m_input_tile_ids(
+          device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "avalanche influence area compute, tile id buffer")
     , m_input_settings(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-    , m_output_tile_map(device, radix::tile::Id { unsigned(-1), {} }, -1)
+    , m_output_tile_map(device, radix::tile::Id { unsigned(-1), {} }, UINT32_MAX)
     , m_output_texture(device, output_resolution, capacity, output_format)
 {
     m_output_tile_map.update_gpu_data();

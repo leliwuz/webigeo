@@ -49,7 +49,8 @@ void ComputePipelineSettings::write_to_json_file(const ComputePipelineSettings& 
     doc.setObject(object);
 
     QFile output_file(output_path);
-    output_file.open(QIODevice::WriteOnly);
+    if (!output_file.open(QIODevice::WriteOnly))
+        qFatal("Failed to open pipeline settings file for writing: %s", output_path.string().c_str());
     output_file.write(doc.toJson());
     output_file.close();
 }
@@ -61,7 +62,9 @@ ComputePipelineSettings ComputePipelineSettings::read_from_json_file(const std::
         QJsonDocument document;
 
         QFile input_file(input_path);
-        input_file.open(QIODevice::ReadOnly);
+        if (!input_file.open(QIODevice::ReadOnly))
+            qFatal("Failed to open pipeline settings file for reading: %s", input_path.string().c_str());
+
         QByteArray data = input_file.readAll();
         document = QJsonDocument::fromJson(data);
         input_file.close();

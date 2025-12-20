@@ -22,6 +22,7 @@
 #include "TerrainRenderer.h"
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+#include <imgui_internal.h>
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
 #include <IconsFontAwesome5.h>
@@ -29,7 +30,6 @@
 #endif
 #include "nucleus/utils/image_loader.h"
 #include "util/dark_mode.h"
-#include "util/url_tools.h"
 #include "webgpu_engine/Window.h"
 #include <QDebug>
 #include <QFile>
@@ -73,9 +73,6 @@ void GuiManager::init(
     ImGui_ImplWGPU_Init(&init_info);
 
     webgpu_app::util::setup_darkmode_imgui_style();
-    // ImGui::StyleColorsLight();
-    // ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImVec4(0.9f, 0.9f, 0.9f, 0.9f);
-    // ImNodes::StyleColorsLight();
 
     this->install_fonts();
 
@@ -224,9 +221,11 @@ void GuiManager::draw()
     if (!m_gui_visible)
         return;
 
+#ifndef QT_DEBUG
     if (m_first_frame) {
-        ImGui::OpenPopup("WARNING: RESEARCH PREVIEW");
+        ImGui::OpenPopup("research_preview");
     }
+#endif
 
     draw_disclaimer_popup();
 
@@ -374,12 +373,19 @@ void GuiManager::draw()
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0)); // No padding for better icon alignment
         ImGui::Begin("RotateNorthButton", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // fully transparent
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // black with alpha 0.2
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // same for active
 
         auto camController = m_terrain_renderer->get_camera_controller();
 
-        if (ImGui::InvisibleButton("RotateNorthBtn", ImVec2(48, 48))) {
+        if (ImGui::Button("###RotateNorthButton", ImVec2(48, 48))) {
             camController->rotate_north();
         }
+
+        ImGui::PopStyleColor(3);
 
         // Drawing the arrow icon manually with rotation
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
@@ -449,13 +455,15 @@ void GuiManager::draw()
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Transparent border
         ImGui::Begin("CopyrightBox", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
 
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+
         // Set up a button with no hover effect by temporarily changing colors
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 1.0f, 1.0f, 0.0f)); // Transparent background
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 1.0f, 0.2f)); // No hover effect
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 1.0f, 0.1f)); // No active effect
 
         if (ImGui::Button("About")) {
-            m_about_visible = !m_about_visible;
+            m_show_about_popup = true; // necessary due to ImGui-Window-Scope
         }
 
         ImGui::PopStyleColor(3);
@@ -464,9 +472,7 @@ void GuiManager::draw()
         ImGui::PopStyleVar(); // Restore padding
     }
 
-    if (m_about_visible) {
-        draw_about_window();
-    }
+    draw_about_popup();
 
     m_first_frame = false;
 #endif
@@ -474,12 +480,11 @@ void GuiManager::draw()
 
 void GuiManager::draw_disclaimer_popup()
 {
-    // Always center this window when appearing
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(365, 200));
 
-    if (ImGui::BeginPopupModal("WARNING: RESEARCH PREVIEW", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize)) {
+    if (ImGui::BeginPopupModal("research_preview", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize)) {
         const char* text = "WARNING: RESEARCH PREVIEW";
         auto windowWidth = ImGui::GetWindowSize().x;
         auto textWidth = ImGui::CalcTextSize(text).x;
@@ -502,53 +507,73 @@ void GuiManager::draw_disclaimer_popup()
         }
         ImGui::EndPopup();
     }
+#endif
 }
 
-void GuiManager::draw_about_window()
+void GuiManager::draw_about_popup()
 {
-    // Always center this window when appearing
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(365, 280));
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    if (m_show_about_popup) {
+        m_show_about_popup = false;
+        ImGui::OpenPopup("about_webigeo");
+    }
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
+    ImGui::SetNextWindowSize({400,370});
 
-    if (ImGui::Begin("About weBIGeo", &m_about_visible, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse)) {
-        ImGui::TextWrapped(
-            "weBIGeo is a research project to show that processing and visualizing of large datasets is possible in the browser near real-time.");
+    if (ImGui::BeginPopupModal("about_webigeo", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
+    {
+        const char* title = "About weBIGeo";
+        float windowWidth = ImGui::GetWindowSize().x;
+        float textWidth   = ImGui::CalcTextSize(title).x;
+        ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+        ImGui::Text("%s", title);
+
+        ImGui::Spacing();
+        ImGui::Separator();
         ImGui::Spacing();
 
-        ImGui::Text("This project is based on ");
-        ImGui::SameLine();
+        ImGui::TextWrapped("weBIGeo is a research project to show that processing and "
+                           "visualizing of large datasets is possible in the browser near real-time.");
+
+        ImGui::Spacing();
+        ImGui::Text("This project is based on "); ImGui::SameLine();
         ImGui::TextLinkOpenURL("AlpineMaps.org", "https://github.com/AlpineMapsOrg/renderer");
 
         ImGui::Spacing();
-
-        ImGui::Text("It is licensed under the");
-        ImGui::SameLine();
+        ImGui::Text("It is licensed under the "); ImGui::SameLine();
         ImGui::TextLinkOpenURL("GPLv3", "https://www.gnu.org/licenses/gpl-3.0.html#license-text");
 
         ImGui::Spacing();
-
         ImGui::TextLinkOpenURL("GitHub repository", "https://github.com/weBIGeo/webigeo");
         ImGui::TextLinkOpenURL("netidee project page", "https://www.netidee.at/webigeo");
 
-        ImGui::Spacing();
-        ImGui::Spacing();
-        ImGui::Spacing();
+        ImGui::Spacing(); ImGui::Spacing();
+        ImGui::Text("Authors: "); ImGui::SameLine();
+        ImGui::TextWrapped("Patrick Komon, Gerald Kimmersdorfer, Adam Celarek, "
+                           "Jakob Lindner, Jakob Maier, Markus Rampp");
 
-        ImGui::Text("Height and ortho data is provided by");
-        ImGui::SameLine();
+        ImGui::Spacing(); ImGui::Spacing();
+        ImGui::Text("Height and ortho data is provided by "); ImGui::SameLine();
         ImGui::TextLinkOpenURL("basemap.at", "https://basemap.at/");
 
-        ImGui::Spacing();
-        ImGui::Spacing();
-        ImGui::Spacing();
-
+        ImGui::Spacing(); ImGui::Spacing();
         ImGui::TextWrapped("If you have feedback or ideas for collaboration, contact us!");
-        ImGui::Text("E-Mail:");
-        ImGui::SameLine();
-        ImGui::TextLinkOpenURL("pkomon@cg.tuwien.ac.at", "mailto:pkomon@cg.tuwien.ac.at");
+        ImGui::Text("E-Mail: "); ImGui::SameLine();
+        ImGui::TextLinkOpenURL("alpinemaps@cg.tuwien.ac.at", "mailto:alpinemaps@cg.tuwien.ac.at");
+        ImGui::TextLinkOpenURL("Join us on Discord", "https://discord.gg/j4MRrrbh");
+
+        ImGui::Spacing(); ImGui::Spacing();
+
+        ImGui::SetCursorPosX(windowWidth - 200 - ImGui::GetStyle().WindowPadding.x);
+        if (ImGui::Button("Close", {200, 0})) {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
     }
-    ImGui::End();
+#endif
 }
+
+
 
 } // namespace webgpu_app

@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include "Buffer.h"
 #include "Node.h"
-#include "PipelineManager.h"
+#include "webgpu_engine/Buffer.h"
+#include "webgpu_engine/PipelineManager.h"
 
 namespace webgpu_engine::compute::nodes {
 

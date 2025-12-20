@@ -23,20 +23,76 @@
 #include <iostream>
 #include <limits>
 
-WGPURequiredLimits UnittestWebgpuContext::default_limits()
+WGPULimits UnittestWebgpuContext::default_limits()
 {
-    WGPURequiredLimits required_limits {};
+    WGPULimits required_limits {};
+    WGPULimits supported_limits {};
+    wgpuAdapterGetLimits(adapter, &supported_limits);
     // irrelevant for us, but needs to be set
-    required_limits.limits.minStorageBufferOffsetAlignment = std::numeric_limits<uint32_t>::max();
-    required_limits.limits.minUniformBufferOffsetAlignment = std::numeric_limits<uint32_t>::max();
+    required_limits.minStorageBufferOffsetAlignment = supported_limits.minStorageBufferOffsetAlignment;
+    required_limits.minUniformBufferOffsetAlignment = supported_limits.minUniformBufferOffsetAlignment;
+    required_limits.maxInterStageShaderVariables = WGPU_LIMIT_U32_UNDEFINED; // required for current version of  Chrome Canary (2025-04-03)
     return required_limits;
 }
 
-UnittestWebgpuContext::UnittestWebgpuContext(WGPURequiredLimits required_limits)
+void webgpu_device_error_callback(
+    [[maybe_unused]] const WGPUDevice* device, WGPUErrorType type, WGPUStringView message, [[maybe_unused]] void* userdata1, [[maybe_unused]] void* userdata2)
 {
-    webgpu::platformInit();
+    const char* typeStr = "Unknown";
+    switch (type) {
+        case WGPUErrorType_NoError: typeStr = "NoError"; break;
+        case WGPUErrorType_Validation: typeStr = "Validation"; break;
+        case WGPUErrorType_OutOfMemory: typeStr = "OutOfMemory"; break;
+        case WGPUErrorType_Internal: typeStr = "Internal"; break;
+        case WGPUErrorType_Unknown: typeStr = "Unknown"; break;
+        default: break;
+    }
 
-    instance = wgpuCreateInstance(nullptr);
+    std::cout << "WebGPU Error [" << typeStr << "]: " << std::string_view(message.data, message.length) << std::endl;
+}
+
+void webgpu_device_lost_callback([[maybe_unused]] const WGPUDevice* device,
+    WGPUDeviceLostReason reason,
+    WGPUStringView message,
+    [[maybe_unused]] void* userdata1,
+    [[maybe_unused]] void* userdata2)
+{
+    const char* typeStr = "Unknown";
+    switch (reason) {
+        case WGPUDeviceLostReason_Unknown: typeStr = "Unknown"; break;
+        case WGPUDeviceLostReason_Destroyed: typeStr = "Destroyed"; break;
+        case WGPUDeviceLostReason_CallbackCancelled: typeStr = "CallbackCancelled"; break;
+        case WGPUDeviceLostReason_FailedCreation: typeStr = "FailedCreation"; break;
+        default: break;
+    }
+
+    std::cout << "WebGPU Device Lost [" << typeStr << "]: " << std::string_view(message.data, message.length) << std::endl;
+}
+
+UnittestWebgpuContext::UnittestWebgpuContext(bool use_default_limits, WGPULimits required_limits)
+{
+    instance_desc = {};
+    instance_desc.nextInChain = nullptr;
+
+#ifndef __EMSCRIPTEN__
+    WGPUDawnTogglesDescriptor dawnToggles;
+    dawnToggles.chain.next = nullptr;
+    dawnToggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
+
+    std::vector<const char*> enabledToggles = { "allow_unsafe_apis" };
+
+    dawnToggles.enabledToggles = enabledToggles.data();
+    dawnToggles.enabledToggleCount = enabledToggles.size();
+    dawnToggles.disabledToggleCount = 0;
+
+    instance_desc.nextInChain = &dawnToggles.chain;
+#endif
+
+    const auto timed_wait_feature = WGPUInstanceFeatureName_TimedWaitAny;
+    instance_desc.requiredFeatureCount = 1;
+    instance_desc.requiredFeatures = &timed_wait_feature;
+
+    instance = wgpuCreateInstance(&instance_desc);
     assert(instance);
 
     WGPURequestAdapterOptions adapter_opts {};
@@ -45,21 +101,33 @@ UnittestWebgpuContext::UnittestWebgpuContext(WGPURequiredLimits required_limits)
     adapter = webgpu::requestAdapterSync(instance, adapter_opts);
     assert(adapter);
 
-    WGPUDeviceDescriptor device_desc {};
-    device_desc.label = "webgpu device for unittests";
-    device_desc.requiredFeatureCount = 0;
-    device_desc.requiredLimits = &required_limits;
-    device_desc.defaultQueue.label = "default queue for unittests";
-    device = webgpu::requestDeviceSync(adapter, device_desc);
-    assert(device);
+    std::vector<WGPUFeatureName> requiredFeatures;
+    requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
 
-    auto onDeviceError = [](WGPUErrorType type, char const* message, void* /* pUserData */) {
-        std::cout << "Uncaptured device error: type " << type;
-        if (message)
-            std::cout << " (" << message << ")";
-        std::cout << std::endl;
+        WGPUDeviceDescriptor device_desc {};
+    device_desc.label = WGPUStringView { .data = "webigeo device", .length = WGPU_STRLEN };
+    device_desc.requiredFeatures = requiredFeatures.data();
+    device_desc.requiredFeatureCount = (uint32_t)requiredFeatures.size();
+    if (use_default_limits)
+        required_limits = default_limits();
+    device_desc.requiredLimits = &required_limits;
+    device_desc.defaultQueue.label = WGPUStringView { .data = "webigeo queue", .length = WGPU_STRLEN };
+    device_desc.uncapturedErrorCallbackInfo = WGPUUncapturedErrorCallbackInfo {
+        .nextInChain = nullptr,
+        .callback = webgpu_device_error_callback,
+        .userdata1 = nullptr,
+        .userdata2 = nullptr,
     };
-    wgpuDeviceSetUncapturedErrorCallback(device, onDeviceError, nullptr /* pUserData */);
+    device_desc.deviceLostCallbackInfo = WGPUDeviceLostCallbackInfo {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = webgpu_device_lost_callback,
+        .userdata1 = nullptr,
+        .userdata2 = nullptr,
+    };
+
+    device = webgpu::requestDeviceSync(instance, adapter, device_desc);
+    assert(device);
 
     queue = wgpuDeviceGetQueue(device);
     assert(queue);

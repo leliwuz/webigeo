@@ -45,13 +45,15 @@ class NodeGraph : public QObject {
     Q_OBJECT
 
 public:
-    NodeGraph() = default;
+    NodeGraph(const std::string& name);
 
     Node* add_node(const std::string& name, std::unique_ptr<Node> node);
 
     [[nodiscard]] Node& get_node(const std::string& node_name);
     [[nodiscard]] const Node& get_node(const std::string& node_name) const;
     [[nodiscard]] bool exists_node(const std::string& node_name) const;
+    [[nodiscard]] const std::string& get_name() const;
+    void set_name(const std::string& name);
 
     [[nodiscard]] std::unordered_map<std::string, std::unique_ptr<Node>>& get_nodes();
     [[nodiscard]] const std::unordered_map<std::string, std::unique_ptr<Node>>& get_nodes() const;
@@ -93,7 +95,6 @@ signals:
 public:
     static std::unique_ptr<NodeGraph> create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_snow_compute_graph(const PipelineManager& manager, WGPUDevice device);
-    static std::unique_ptr<NodeGraph> create_normal_with_snow_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_release_points_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_avalanche_trajectories_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_trajectories_with_export_compute_graph(const PipelineManager& manager, WGPUDevice device);
@@ -104,6 +105,7 @@ public:
     static std::unique_ptr<NodeGraph> create_d8_compute_graph(const PipelineManager& manager, WGPUDevice device);
 
 private:
+    std::string m_name;
     std::unordered_map<std::string, std::unique_ptr<Node>> m_nodes;
 
     GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>* m_output_normals_hash_map_ptr;

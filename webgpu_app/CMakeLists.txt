@@ -20,8 +20,6 @@
 
 project(alpine-renderer-webgpu_app LANGUAGES C CXX)
 
-# option to enable/disable imgui
-option(ALP_WEBGPU_APP_ENABLE_IMGUI "Enable imgui" ON)
 
 set(SOURCES
     main.cpp
@@ -30,7 +28,7 @@ set(SOURCES
     InputMapper.h InputMapper.cpp
 
     util/error_logging.h util/error_logging.cpp
-    util/url_tools.h util/url_tools.cpp
+
     util/dark_mode.h util/dark_mode.cpp
 
     GuiManager.h GuiManager.cpp
@@ -47,52 +45,78 @@ qt_add_executable(webgpu_app
 
 
 set_target_properties(webgpu_app PROPERTIES
-    WIN32_EXECUTABLE TRUE
+    WIN32_EXECUTABLE FALSE  # Set to FALSE to keep console attached on Windows
     MACOSX_BUNDLE TRUE
 )
 
 target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine Qt::Core)
 target_include_directories(webgpu_app PRIVATE .)
 
+# Copy necessary DLLs to the output directory on Windows
+if (WIN32 AND NOT EMSCRIPTEN)
+    # Copy SDL2 DLL
+    if (EXISTS "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl/bin/SDL2.dll")
+        add_custom_command(TARGET webgpu_app POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl/bin/SDL2.dll"
+            "$<TARGET_FILE_DIR:webgpu_app>"
+            COMMENT "Copying SDL2.dll"
+        )
+    endif()
+
+    # Use Qt's windeployqt to copy all necessary Qt dependencies
+    get_target_property(QMAKE_EXECUTABLE Qt6::qmake IMPORTED_LOCATION)
+    get_filename_component(QT_BIN_DIR "${QMAKE_EXECUTABLE}" DIRECTORY)
+    find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${QT_BIN_DIR}")
+
+    if(WINDEPLOYQT_EXECUTABLE)
+        add_custom_command(TARGET webgpu_app POST_BUILD
+            COMMAND "${WINDEPLOYQT_EXECUTABLE}" --no-translations "$<TARGET_FILE:webgpu_app>"
+            COMMENT "Running windeployqt for webgpu_app"
+        )
+    endif()
+
+
+    # === INSTALL CONFIGURATION FOR NATIVE WINDOWS BUILD ===
+    install(TARGETS webgpu_app RUNTIME DESTINATION . BUNDLE DESTINATION .)
+    if (EXISTS "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl/bin/SDL2.dll")
+        install(FILES "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl/bin/SDL2.dll" DESTINATION .)
+    endif()
+    if(WINDEPLOYQT_EXECUTABLE)
+        install(CODE "
+            execute_process(
+                COMMAND \"${WINDEPLOYQT_EXECUTABLE}\" --no-translations \"\${CMAKE_INSTALL_PREFIX}/webgpu_app.exe\"
+            )
+        ")
+    endif()
+    # ================================================
+endif()
+
 if (EMSCRIPTEN)
-    # Define the exported functions
-    set(WEBGPU_EXPORTED_FUNCTIONS
-        _main
-        _global_file_uploaded
-        _malloc
-        _free
-    )
 
-    string(REPLACE ";" "," WEBGPU_EXPORTED_FUNCTIONS_STRING "${WEBGPU_EXPORTED_FUNCTIONS}")
-
-    # because of a bug with emscripten and -pthreads, we have to add __emscripten_thread_crashed,__embind_initialize_bindings
-    # to EXPORTED_FUNCTIONS; for details see https://github.com/emscripten-core/emscripten/issues/21844
     target_link_options(webgpu_app PRIVATE
             --use-port=sdl2 # Use emscripten SDL2 implementation
-            -sASYNCIFY # Required by WebGPU-C++
-            -sEXPORTED_FUNCTIONS=${WEBGPU_EXPORTED_FUNCTIONS_STRING} # _main needs to be specifically exported if sEXPORTED_FUNCTIONS is set
-            #-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF16ToString,stringToUTF16,JSEvents,specialHTMLTargets,FS # will be overwritten by Qt
-            #--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/resources # resources pls via qt resource system
-            #--shell-file "${CMAKE_CURRENT_SOURCE_DIR}/shell/${SHELL_FILE}" # setting custom shell here makes no sense as qt will overwrite it anyway
+            #--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/resources # DONT USE RESOURCES PLS VIA QT RESOURCE SYSTEM
+            #--shell-file "${CMAKE_CURRENT_SOURCE_DIR}/shell/${SHELL_FILE}" # DOESNT WORK AS QT WILL OVERWRITE IT
             -msimd128   #enables auto-vectorization and simd support
             -lembind #enable embind
             #-gsource-map #generate source maps
 
-            # FOLLOWING IS SET BY Qt6.6.1 (Single thread)
+            # FOLLOWING IS SET BY Qt6.10
+            #-s EXPORTED_RUNTIME_METHODS=UTF16ToString,stringToUTF16,JSEvents,specialHTMLTargets,FS,callMain
+            #-s EXPORTED_FUNCTIONS=_main,__embind_initialize_bindings
+            #-s PTHREAD_POOL_SIZE=4
             #-s INITIAL_MEMORY=50MB
-            #-s EXPORTED_RUNTIME_METHODS=UTF16ToString,stringToUTF16,JSEvents,specialHTMLTargets,FS
+            #-s MAXIMUM_MEMORY=4GB
             #-s MAX_WEBGL_VERSION=2
-            #-s FETCH=1  # necessary for Network-Requests
             #-s WASM_BIGINT=1
             #-s STACK_SIZE=5MB
-            #-s MODULARIZE=1
-            #-s EXPORT_NAME=createQtAppInstance
-            #-s DISABLE_EXCEPTION_CATCHING=1
+            #-pthread
             #-s ALLOW_MEMORY_GROWTH
-            #-s DEMANGLE_SUPPORT=1
             #--profiling-funcs
-            #-sASYNCIFY_IMPORTS=qt_asyncify_suspend_js,qt_asyncify_resume_js
-            #-s ERROR_ON_UNDEFINED_SYMBOLS=1
+            #-sERROR_ON_UNDEFINED_SYMBOLS=1
+            #-sFETCH
+            #-sASYNCIFY=1
     )
 
     # enables to append to EXPORTED_RUNTIME_METHODS which is overridden by Qt
@@ -108,17 +132,26 @@ if (EMSCRIPTEN)
     foreach(SHELL_FILE ${SHELL_FILES})
         get_filename_component(SHELL_FILE_NAME ${SHELL_FILE} NAME)
         add_custom_command(TARGET webgpu_app POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E remove -f
+            ${CMAKE_CURRENT_BINARY_DIR}/${SHELL_FILE_NAME}
             COMMAND ${CMAKE_COMMAND} -E copy
             ${SHELL_FILE}
             ${CMAKE_CURRENT_BINARY_DIR}/${SHELL_FILE_NAME}
         )
     endforeach()
 
-    #add_custom_command(TARGET webgpu_app POST_BUILD
-    #    COMMAND ${CMAKE_COMMAND} -E copy
-    #            ${CMAKE_CURRENT_SOURCE_DIR}/shell/fullscreen_qt_webgpu_shell.html
-    #            ${CMAKE_CURRENT_BINARY_DIR}/webgpu_app.html
-    #)
-
-
+    # === INSTALL CONFIGURATION FOR WASM BUILD ===
+    set(WASM_OUTPUT_FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/webgpu_app.html
+        ${CMAKE_CURRENT_BINARY_DIR}/webgpu_app.js
+        ${CMAKE_CURRENT_BINARY_DIR}/webgpu_app.wasm
+        ${CMAKE_CURRENT_BINARY_DIR}/qtloader.js
+    )
+    foreach(SHELL_FILE ${SHELL_FILES})
+        get_filename_component(SHELL_FILE_NAME ${SHELL_FILE} NAME)
+        list(APPEND WASM_OUTPUT_FILES ${CMAKE_CURRENT_BINARY_DIR}/${SHELL_FILE_NAME})
+    endforeach()
+    install(FILES ${WASM_OUTPUT_FILES} DESTINATION .)
+    install(CODE "file(RENAME \"\${CMAKE_INSTALL_PREFIX}/webgpu_app.html\" \"\${CMAKE_INSTALL_PREFIX}/index.html\")")
+    # ================================================
 endif()

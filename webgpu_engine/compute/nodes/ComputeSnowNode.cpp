@@ -59,8 +59,8 @@ void ComputeSnowNode::run_impl()
     const auto& normals_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("normal texture").get_connected_data());
 
     // create output texture
-    m_output_snow_texture
-        = create_snow_texture(m_device, heights_texture.texture().width(), heights_texture.texture().height(), m_settings.format, m_settings.usage);
+    m_output_snow_texture = create_snow_texture(
+        m_device, uint32_t(heights_texture.texture().width()), uint32_t(heights_texture.texture().height()), m_settings.format, m_settings.usage);
 
     // update uniform buffer
     m_snow_settings_uniform_buffer.data.angle.x = 1.0f; // always enabled, does not matter for compute

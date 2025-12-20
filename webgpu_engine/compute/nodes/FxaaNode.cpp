@@ -51,7 +51,8 @@ void FxaaNode::run_impl()
 
     const auto& input_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("texture").get_connected_data());
 
-    m_output_texture = create_output_texture(m_device, input_texture.texture().width(), input_texture.texture().height(), m_settings.format, m_settings.usage);
+    m_output_texture = create_output_texture(
+        m_device, uint32_t(input_texture.texture().width()), uint32_t(input_texture.texture().height()), m_settings.format, m_settings.usage);
 
     // create bind group
     std::vector<WGPUBindGroupEntry> entries {

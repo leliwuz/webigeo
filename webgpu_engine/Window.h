@@ -24,7 +24,9 @@
 #include "ShaderModuleManager.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "compute/NodeGraphRenderer.h"
+#endif
 #include "compute/nodes/NodeGraph.h"
 #include "compute/nodes/RequestTilesNode.h"
 #include "nucleus/AbstractRenderWindow.h"
@@ -124,8 +126,6 @@ private:
     void create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group = true);
     void update_compute_pipeline_settings();
     void update_settings_and_rerun_pipeline(const std::string& entry_node = "");
-    void init_compute_pipeline_presets();
-    void apply_compute_pipeline_preset(size_t preset_index);
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_overlay_texture(unsigned int width, unsigned int height);
     void update_image_overlay_texture(const std::string& image_file_path);
@@ -182,8 +182,6 @@ private:
     bool m_is_region_selected = false;
     GuiErrorState m_gui_error_state;
 
-    std::vector<ComputePipelineSettings> m_compute_pipeline_presets;
-
     std::vector<compute::nodes::RequestTilesNode::RequestTilesNodeSettings> m_tile_source_settings = {
         compute::nodes::RequestTilesNode::RequestTilesNodeSettings(),
         compute::nodes::RequestTilesNode::RequestTilesNodeSettings {
@@ -202,8 +200,10 @@ private:
     const webgpu::raii::TextureView* m_compute_overlay_texture_view = nullptr; // will be set to correct texture view after pipeline run completion
     const webgpu::raii::Sampler* m_compute_overlay_sampler = nullptr; // will be set to correct sampler after pipeline run completion
 
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     std::unique_ptr<compute::NodeGraphRenderer> m_node_graph_renderer;
     bool m_should_render_node_graph = false;
+#endif
 
     bool paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation, const std::string& unit = "");
 

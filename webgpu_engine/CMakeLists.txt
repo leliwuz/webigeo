@@ -18,6 +18,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 
+# option to enable/disable imgui
+option(ALP_WEBGPU_APP_ENABLE_IMGUI "Enable imgui" ON)
+option(ALP_ENABLE_WGSL_MINIFICATION "Minify WGSL shaders to reduce size" OFF)
+
 project(alpine-renderer-webgpu_engine LANGUAGES C CXX)
 
 
@@ -36,7 +40,6 @@ set(SOURCES
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp
     compute/GpuTileId.h compute/GpuTileId.cpp
     compute/RectangularTileRegion.h compute/RectangularTileRegion.cpp
-    compute/NodeGraphRenderer.h compute/NodeGraphRenderer.cpp
     compute/nodes/Node.h compute/nodes/Node.cpp
     compute/nodes/SelectTilesNode.h compute/nodes/SelectTilesNode.cpp
     compute/nodes/RequestTilesNode.h compute/nodes/RequestTilesNode.cpp
@@ -62,45 +65,84 @@ set(SOURCES
     compute/nodes/util.h compute/nodes/util.cpp
 )
 
+# NodeGraphRenderer and NodeRenderer are only compiled when ImGui is enabled
+if (ALP_WEBGPU_APP_ENABLE_IMGUI)
+    list(APPEND SOURCES
+        compute/NodeGraphRenderer.h compute/NodeGraphRenderer.cpp
+        compute/NodeRenderer.h compute/NodeRenderer.cpp
+    )
+endif()
+
 qt_add_library(webgpu_engine STATIC ${SOURCES})
+
+if (ALP_ENABLE_WGSL_MINIFICATION)
+    set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/wgsl_shaders")
+    set(SHADER_MINIFIED_DIR "${CMAKE_CURRENT_BINARY_DIR}/wgsl_shaders_minified")
+    set(MINIFY_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/minify_shaders.py")
+
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} "${MINIFY_SCRIPT}" "${SHADER_SOURCE_DIR}" "${SHADER_MINIFIED_DIR}"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        RESULT_VARIABLE MINIFY_RESULT
+    )
+    if(NOT MINIFY_RESULT EQUAL 0)
+        message(FATAL_ERROR "Shader minification failed")
+    endif()
+
+    file(GLOB_RECURSE SHADER_SOURCES "${SHADER_SOURCE_DIR}/*.wgsl")
+    add_custom_target(minify_shaders
+        COMMAND ${Python3_EXECUTABLE} "${MINIFY_SCRIPT}" "${SHADER_SOURCE_DIR}" "${SHADER_MINIFIED_DIR}"
+        DEPENDS ${SHADER_SOURCES} ${MINIFY_SCRIPT}
+        COMMENT "Minifying shaders"
+        VERBATIM
+    )
+    add_dependencies(webgpu_engine minify_shaders)
+
+    set(SHADER_BASE_DIR "${SHADER_MINIFIED_DIR}")
+    target_compile_definitions(webgpu_engine PUBLIC ALP_ENABLE_WGSL_MINIFICATION)
+else()
+    set(SHADER_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/wgsl_shaders")
+endif()
 
 qt_add_resources(webgpu_engine "shaders"
     PREFIX "/wgsl_shaders"
-    BASE "wgsl_shaders/"
+    BASE "${SHADER_BASE_DIR}"
     FILES
-        "wgsl_shaders/render_tiles.wgsl"
-        "wgsl_shaders/render_atmosphere.wgsl"
-        "wgsl_shaders/render_lines.wgsl"
-        "wgsl_shaders/compose_pass.wgsl"
-        "wgsl_shaders/screen_pass_vert.wgsl"
+        "${SHADER_BASE_DIR}/render_tiles.wgsl"
+        "${SHADER_BASE_DIR}/render_atmosphere.wgsl"
+        "${SHADER_BASE_DIR}/render_lines.wgsl"
+        "${SHADER_BASE_DIR}/compose_pass.wgsl"
+        "${SHADER_BASE_DIR}/screen_pass_vert.wgsl"
 
-        "wgsl_shaders/compute/downsample_compute.wgsl"
-        "wgsl_shaders/compute/normals_compute.wgsl"
-        "wgsl_shaders/compute/snow_compute.wgsl"
-        "wgsl_shaders/compute/upsample_textures_compute.wgsl"
-        "wgsl_shaders/compute/avalanche_trajectories_compute.wgsl"
-        "wgsl_shaders/compute/buffer_to_texture_compute.wgsl"
-        "wgsl_shaders/compute/avalanche_influence_area_compute.wgsl"
-        "wgsl_shaders/compute/d8_compute.wgsl"
-        "wgsl_shaders/compute/mipmap_creation_compute.wgsl"
-        "wgsl_shaders/compute/compute_release_points.wgsl"
-        "wgsl_shaders/compute/height_decode_compute.wgsl"
-        "wgsl_shaders/compute/fxaa_compute.wgsl"
-        "wgsl_shaders/compute/iterative_simulation_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/downsample_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/normals_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/snow_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/upsample_textures_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/avalanche_trajectories_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/buffer_to_texture_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/avalanche_influence_area_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/d8_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/mipmap_creation_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/compute_release_points.wgsl"
+        "${SHADER_BASE_DIR}/compute/height_decode_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/fxaa_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/iterative_simulation_compute.wgsl"
 
-        "wgsl_shaders/util/atmosphere.wgsl"
-        "wgsl_shaders/util/snow.wgsl"
-        "wgsl_shaders/util/tile_util.wgsl"
-        "wgsl_shaders/util/normals_util.wgsl"
-        "wgsl_shaders/util/tile_hashmap.wgsl"
-        "wgsl_shaders/util/shared_config.wgsl"
-        "wgsl_shaders/util/camera_config.wgsl"
-        "wgsl_shaders/util/hashing.wgsl"
-        "wgsl_shaders/util/encoder.wgsl"
-        "wgsl_shaders/util/color_mapping.wgsl"
-        "wgsl_shaders/util/filtering.wgsl"
-        "wgsl_shaders/util/noise.wgsl"
-        "wgsl_shaders/util/random.wgsl"
+        "${SHADER_BASE_DIR}/util/atmosphere.wgsl"
+        "${SHADER_BASE_DIR}/util/snow.wgsl"
+        "${SHADER_BASE_DIR}/util/tile_util.wgsl"
+        "${SHADER_BASE_DIR}/util/normals_util.wgsl"
+        "${SHADER_BASE_DIR}/util/tile_hashmap.wgsl"
+        "${SHADER_BASE_DIR}/util/shared_config.wgsl"
+        "${SHADER_BASE_DIR}/util/camera_config.wgsl"
+        "${SHADER_BASE_DIR}/util/hashing.wgsl"
+        "${SHADER_BASE_DIR}/util/encoder.wgsl"
+        "${SHADER_BASE_DIR}/util/color_mapping.wgsl"
+        "${SHADER_BASE_DIR}/util/filtering.wgsl"
+        "${SHADER_BASE_DIR}/util/noise.wgsl"
+        "${SHADER_BASE_DIR}/util/random.wgsl"
     )
 
 # Note: This has to go into the webgpu_app as soon as we don't use ImGui in the engine anymore!!!
@@ -110,7 +152,7 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
     alp_add_git_repository(iconfontcppheaders URL https://github.com/juliettef/IconFontCppHeaders.git COMMITISH f30b1e73b2d71eb331d77619c3f1de34199afc38 DO_NOT_ADD_SUBPROJECT)
     target_include_directories(webgpu_engine PUBLIC ../extern/iconfontcppheaders)
 
-    alp_add_git_repository(imgui URL https://github.com/AlpineMapsOrgDependencies/imgui_slim.git COMMITISH 480f1cfdeb84487f6f676324885ba0a2fe178fcd)
+    alp_add_git_repository(imgui URL https://github.com/AlpineMapsOrgDependencies/imgui_slim.git COMMITISH 4d8ecbf58ebf32e757ff56a60f1fb0446033edb8)
 
     set(IMNODES_IMGUI_TARGET_NAME imgui)
     alp_add_git_repository(imnodes URL https://github.com/AlpineMapsOrgDependencies/imnodes_slim.git COMMITISH 324355e64ed8b5bea02fe1439cdcb5c7773b4436)

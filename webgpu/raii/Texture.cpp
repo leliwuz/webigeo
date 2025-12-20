@@ -208,7 +208,7 @@ void Texture::save_to_file(WGPUDevice device, const std::string& filename, size_
                 sum += value;
                 float clamped = std::max(min_value, std::min(max_value, value));
                 float normalized = (clamped - min_value) / range;
-                uint32_t packed = static_cast<uint32_t>(normalized * std::numeric_limits<uint32_t>::max());
+                uint32_t packed = static_cast<uint32_t>(normalized * static_cast<double>(std::numeric_limits<uint32_t>::max()));
                 packed_data[i] = packed;
             }
             float average_value = static_cast<float>(sum / num_floats);

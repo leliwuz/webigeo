@@ -1,227 +1,98 @@
 # Setup
-weBIGeo's primary target is the web. Additionally we support native builds on Windows, using [Dawn](https://dawn.googlesource.com/) and [SDL2](https://github.com/libsdl-org/SDL/tree/SDL2). This allows for faster development as emscripten linking is quite slow and GPU debugging is not easily possible in the web. Both setups require significant setup time as we need to compile Qt by source. For the native workflow also Dawn and SDL needs to be compiled. The rest of the dependencies should get automatically pulled by the cmake setup.
+weBIGeo can be deployed to the web via emscripten and additionally we support native builds on Windows, using [Dawn](https://dawn.googlesource.com/) and [SDL2](https://github.com/libsdl-org/SDL/tree/SDL2).
+
+## CMake Presets
+| Preset | Description |
+|--------|-------------|
+| **msvc-debug** | MSVC Debug build for Windows (native) |
+| **msvc-release** | MSVC Release build for Windows (native) |
+| **wasm-debug** | WebAssembly Debug build |
+| **wasm-release** | WebAssembly Release build |
+| **wasm-publish** | WebAssembly Production build with minified shaders and no debug output |
 
 ## Building the web version
 
 ### Dependencies
-* Qt 6.9.2 with
-  * MinGW (GCC on linux might work but not tested)
-  * Qt Shader Tools (otherwise Qt configure fails)
-  * Sources
-* [emscripten](https://emscripten.org/docs/getting_started/downloads.html)
-* To exactly follow along with build instructions you need `ninja`, `cmake` and `emsdk` in your PATH
-
-### Building Qt with emscripten (singlethreaded)
-For WebGPU to work we need to compile with emscripten version > 4.0.10. The default emscripten version, supported by Qt 6.9.2 is 3.1.70 (https://doc.qt.io/qt-6/wasm.html#installing-emscripten). However, newer emscripten releases include important features needed by Dawn and its implementation of webgpu.h. Therefore we need to recompile the Qt sources with the appropriate version by ourselves. (This step might be unnecessary in the near future with the release of [Qt 6.10](https://wiki.qt.io/Qt_6.10_Release)).
-
-1. Open new CMD Terminal
-
-2. Navigate to Qt Path:
+* Qt 6.10.1 with
+  * WebAssembly (multi-threaded) pre-built binaries
+* Python 3
+* cmake and ninja (come with Qt)
+* emsdk 4.0.7 ([emscripten](https://emscripten.org/docs/getting_started/downloads.html))
    ```
-   cd "C:\Qt\6.9.2"
+   git clone https://github.com/emscripten-core/emsdk.git
+   cd emsdk
+   emsdk install 4.0.7
+   emsdk activate 4.0.7
    ```
 
-3. Generate build and install path (and make sure they are empty)
-   ```
-   mkdir build & mkdir wasm_singlethread_emsdk_4_0_14_custom & cd build
-   ```
+### Configuration
+> [!IMPORTANT]
+> If you’re using Qt Creator, you can simply use the default kit *WebAssembly Qt 6.10.1 (multi-threaded)* - no additional setup is needed.
 
-4. Install and activate specific emsdk version
-   ```
-   emsdk install 4.0.14 & emsdk activate 4.0.14
-   ```
+Before building, you need to ensure the following paths are correctly configured in [CMakePresets.json](../CMakePresets.json):
 
-5. Configure Qt with a minimal setup (takes ~ 4min)
-   ```
-   "../Src/configure" -debug-and-release -qt-host-path C:\Qt\6.9.2\msvc2022_64 -make libs -no-widgets -optimize-size -no-warnings-are-errors -platform wasm-emscripten -submodules qtdeclarative -no-dbus -no-sql-sqlite -feature-wasm-simd128 -no-feature-cssparser -no-feature-quick-treeview -no-feature-quick-pathview -no-feature-texthtmlparser -no-feature-textodfwriter -no-feature-quickcontrols2-windows -no-feature-quickcontrols2-macos -no-feature-quickcontrols2-ios -no-feature-quickcontrols2-imagine -no-feature-quickcontrols2-universal -no-feature-quickcontrols2-fusion -no-feature-qtprotobufgen -no-feature-pdf -no-feature-printer -no-feature-sqlmodel -no-feature-quick-pixmap-cache-threaded-download -feature-quick-canvas -no-feature-quick-designer -no-feature-quick-particles -no-feature-quick-sprite -no-feature-raster-64bit -no-feature-raster-fp -prefix ../wasm_singlethread_emscripten_4_0_14_custom
-   ```
+1. **Ninja**: Make sure Ninja is in your system PATH, OR update the `PATH` environment variable in the `emscripten-base` preset to point to your Ninja installation (e.g., `C:/Qt/Tools/Ninja`).
 
-6. Build Qt (takes ~ 8min)
-   ```
-   cmake --build . --parallel
-   ```
+2. **EMSDK**: The `EMSDK` environment variable in the `emscripten-base` preset must point to your emsdk installation directory (e.g., `C:/tmp/webigeo/emsdk`).
 
-7. Install Qt (takes ~ 1min)
-   ```
-   cmake --install .
-   ```
-   
-8. Cleanup
-   ```
-   cd .. & rmdir /s /q build
-   ```
+3. **Toolchain file**: The `toolchainFile` path in the `emscripten-base` preset might need to be adapted depending on where Qt is installed (e.g., `C:/Qt/6.10.1/wasm_multithread/lib/cmake/Qt6/qt.toolchain.cmake`).
 
-### Building Qt with emscripten (multithreaded)
-For multithreading to work Qt and emscripten properly, we have to yet again compile a custom version of Qt with an extra flag.
+### Serving the WASM Build
+After building, you can use the `serve_wasm.py` script to serve the build files for the WebAssembly build locally. This script sets up a local server with the correct headers required for WebAssembly.
 
-1. Open new CMD Terminal
 
-2. Navigate to Qt Path:
-   ```
-   cd "C:\Qt\6.9.2"
-   ```
-
-3. Generate build and install path (and make sure they are empty)
-   ```
-   mkdir build & mkdir wasm_multithread_emsdk_4_0_14_custom & cd build
-   ```
-
-4. Install and activate specific emsdk version
-   ```
-   emsdk install 4.0.14 & emsdk activate 4.0.14
-   ```
-
-5. Configure Qt with a minimal setup
-   ```
-   "../Src/configure" -debug-and-release -qt-host-path C:\Qt\6.9.2\msvc2022_64 -make libs -no-widgets -optimize-size -feature-thread -no-warnings-are-errors -platform wasm-emscripten -submodules qtdeclarative -no-dbus -no-sql-sqlite -feature-wasm-simd128 -no-feature-cssparser -no-feature-quick-treeview -no-feature-quick-pathview -no-feature-texthtmlparser -no-feature-textodfwriter -no-feature-quickcontrols2-windows -no-feature-quickcontrols2-macos -no-feature-quickcontrols2-ios -no-feature-quickcontrols2-imagine -no-feature-quickcontrols2-universal -no-feature-quickcontrols2-fusion -no-feature-qtprotobufgen -no-feature-pdf -no-feature-printer -no-feature-sqlmodel -no-feature-quick-pixmap-cache-threaded-download -feature-quick-canvas -no-feature-quick-designer -no-feature-quick-particles -no-feature-quick-sprite -no-feature-raster-64bit -no-feature-raster-fp -prefix ../wasm_multithread_emscripten_4_0_14_custom
-   ```
-
-6. Build Qt
-   ```
-   cmake --build . --parallel
-   ```
-
-7. Install Qt
-   ```
-   cmake --install .
-   ```
-   
-8. Cleanup
-   ```
-   cd .. & rmdir /s /q build
-   ```
-
-### Create Custom Kit for Qt Creator
-This step is specifically tailored to the Qt-Creator IDE.
-
-1. `Preferences -> Devices -> WebAssembly`: Set path to the emsdk git repository
-2. `Preferences -> Kits -> Qt Versions`: Add the newly built Qt-Version(s).
-3. `Preferences -> Kits -> Kits`: Add the new kit(s) and set them to use the custom Qt-Version(s) respectively.
-
-[![Emscripten Path Qt Creator](https://github.com/weBIGeo/ressources/blob/main/for_md/emscripten_path_qt_creator_thumb.jpg?raw=true)](https://github.com/weBIGeo/ressources/blob/main/for_md/emscripten_path_qt_creator.jpg?raw=true) [![Custom Qt Version for emsdk](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_version_thumb.jpg?raw=true)](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_version.jpg?raw=true) [![Custom Qt Kit for emsdk](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_kit_thumb.jpg?raw=true)](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_kit.jpg?raw=true)
-
-### Set EMSDK environment variable
-[TODO] find better way of handling that, the IDE should set this
-
-Usually, the Qt-IDE (Qt Creator) sets emscripten environment variables right before building after configuring the correct path to emsdk. However, for the current combination of versions, the variable is not set properly by the IDE. Therefore, in order to build the WebAssmebly version, manually set the environment variable EMSDK to emsdk's root directory.
-
-## Building the native version<a name="native"></a>
+## Building the native version
 
 ### Dependencies
 * Windows
-* Qt 6.9.2 with
-  * Sources
-  * Qt Shader Tools (otherwise Qt configure fails)
+* Qt 6.10.1 with
   * MSVC2022 pre-built binaries
-* Python
-* Microsoft Visual C++ Compiler 17.6 (aka. MSVC2022) (comes with Visual Studio 2022)
-* To exactly follow along with build instructions you need `ninja` and `cmake` in your PATH
+* Python 3
+* Microsoft Visual C++ Compiler 17.6 (aka. MSVC2022, comes with Visual Studio 2022)
+* cmake and ninja (come with Qt)
 
+### Configuration
 > [!IMPORTANT]
-> Dawn does not compile with MinGW! GCC might be possible, but is not tested (hence the Windows Requirement). If compiling on Linux is necessary it is also required to change the way we link to the precompiled Dawn libraries inside of `cmake/alp_target_add_dawn.cmake`.
+> If you’re using Qt Creator, you can simply use the default kit *Desktop Qt 6.10.1 MSVC2022 (64-bit)* - no additional setup is needed.
 
-### Building Dawn
-Dawn is the webgpu-implementation used in chromium, which is the open-source-engine for Google Chrome. Compiling dawn ourselves allows us to deploy weBIGeo natively such that we don't have to work in the browser sandbox during development. Building Dawn will take some time and memory as we need Debug and Release-Builds.
+Before building, you need to ensure the following paths are correctly configured in [CMakePresets.json](../CMakePresets.json):
 
-> [!NOTE]
-> We choose the dawn version of branch `chromium/6600`, because it is the newest as of writing this. It is well aligned with the emscripten version in use as well as provides important fixes and API changes. All of those versions are subject to change, especially since the webgpu-standard is not finalized! 
+1. **Qt6_DIR**: Verify that the `Qt6_DIR` in the `msvc-base` preset points to your actual Qt installation's CMake directory (e.g., `C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6`).
 
-1. We need the compiler env variables, so choose either (or do manually :P)
-
-   1. Start the `x64 Native Tools Command Prompt for VS 2022`.
-
-   2. Start a new CMD and run: (you might have to adjust the link depending on your vs version)
-      ```
-      "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
-      ```
-
-2.  Navigate to the parent folder of where the weBIGeo renderer is located. (Not strictly necessary as DAWN location can be set with CMAKE-Variable `ALP_DAWN_DIR`)
-    ```
-    cd "/path/to/the/parent/directory/of/webigeo/renderer"
-    ```
-
-3.  Clone dawn and step into directory
-    ```
-    git clone --branch chromium/6600 --depth 1 https://dawn.googlesource.com/dawn & cd dawn
-    ```
-
-4.  Fetch dawn dependencies
-    ```
-    python tools/fetch_dawn_dependencies.py
-    ```
-
-5.  Create build directories
-    ```
-    mkdir build\release & mkdir build\debug
-    ```
-
-6.  Debug Build (minimal vulkan only build):
-    ```
-    cd build/debug & cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DTINT_BUILD_SPV_READER=OFF -DDAWN_BUILD_SAMPLES=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_SPIRV_TOOLS_FUZZER=OFF -DTINT_BUILD_AST_FUZZER=OFF -DTINT_BUILD_REGEX_FUZZER=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF -DDAWN_ENABLE_D3D11=OFF -DDAWN_ENABLE_D3D12=OFF -DDAWN_ENABLE_METAL=OFF -DDAWN_ENABLE_NULL=OFF -DDAWN_ENABLE_DESKTOP_GL=OFF -DDAWN_ENABLE_OPENGLES=OFF -DDAWN_ENABLE_VULKAN=ON ../.. & ninja
-    ```
-
-7.  Release Build (minimal vulkan only build):
-    ```
-    cd ../release & cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DTINT_BUILD_SPV_READER=OFF -DDAWN_BUILD_SAMPLES=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_SPIRV_TOOLS_FUZZER=OFF -DTINT_BUILD_AST_FUZZER=OFF -DTINT_BUILD_REGEX_FUZZER=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF -DDAWN_ENABLE_D3D11=OFF -DDAWN_ENABLE_D3D12=OFF -DDAWN_ENABLE_METAL=OFF -DDAWN_ENABLE_NULL=OFF -DDAWN_ENABLE_DESKTOP_GL=OFF -DDAWN_ENABLE_OPENGLES=OFF -DDAWN_ENABLE_VULKAN=ON ../.. & ninja
-    ```
-	
-8. Cleanup (Optional)
-   To cleanup unnecessary files, like the DAWN sources aswell as configuration files we created a python script. It frees up around 3GB of files. Maybe DAWN will introduce an installation target at some point then this shouldnt be necessary. You can get the [script either here](https://github.com/weBIGeo/ressources/raw/main/scripts/cleanup_dawn_build.py), or just download and execute it with the following command:
-   ```
-   cd ../.. & curl -L "https://github.com/weBIGeo/ressources/raw/main/scripts/cleanup_dawn_build.py" -o cleanup_dawn_build.py && python cleanup_dawn_build.py
-   ```
+### Troubleshoot
+- MY CONFIGURATION TAKES FOREVER: Upon first cmake configuration DAWN as well as SDL is being pulled, build and installed. This might take a while. (~10-40 min)
+- Dawn and SDL installation as well as fetching the custom dawn port for emscripten now happens in the python scripts inside the respective folder. They get executed by the CMAKE-Setup. A change requires a reconfiguration of CMAKE as well as the deletion of the directory in the `extern` directory.
+- If you have issues with your currently installed Vulkan SDK you may try one or all of the following:
+  - disable `DDAWN_FORCE_SYSTEM_COMPONENT_LOAD`
+  - Try with a different DAWN backend
+  - copying the include files from your sdk into the respective folders in the dawn binaries `dawn\third_party\vulkan-utility-libraries\src\include\vulkan\utility\` and `dawn\third_party\vulkan-headers\src\include\vulkan\` and rebuild dawn.
 
 ### About DAWN Backends
 Per default we opt for an only Vulkan-Backend Build for two reasons:
 - Vulkan is probably the most supported Backend running on most devices
-- We have more knowledge about Vulkan which comes to play when we use GPU debugers
+- We have more knowledge about Vulkan which comes to play when we use GPU debuggers
 
-That being said it is possible to compile DAWN with all Backends by using the following commands *instead of step 6 and 7*:
+That being said you may enable different Backends in the `install_dawn.py` script.
+
+## Install Targets
+Install targets are now available for both web and native builds. These targets install all necessary files into the install directory, making it easy to deploy or distribute the built application.
+
+To use the install target:
+```bash
+cmake --build build/<preset-name> --target install
 ```
-cd build/debug & cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DTINT_BUILD_SPV_READER=OFF -DDAWN_BUILD_SAMPLES=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_SPIRV_TOOLS_FUZZER=OFF -DTINT_BUILD_AST_FUZZER=OFF -DTINT_BUILD_REGEX_FUZZER=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF ../.. & ninja
 
-cd ../release & cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DTINT_BUILD_SPV_READER=OFF -DDAWN_BUILD_SAMPLES=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_SPIRV_TOOLS_FUZZER=OFF -DTINT_BUILD_AST_FUZZER=OFF -DTINT_BUILD_REGEX_FUZZER=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF ../.. & ninja
-```
+The install directory is automatically configured in the CMake presets and will be located at:
+- Native builds: `install/msvc-debug` or `install/msvc-release`
+- Web builds: `install/wasm-debug`, `install/wasm-release`, or `install/wasm-publish`
 
-### Building SDL
-SDL is the library in use for window management. Given its big size we also build it seperately from weBIGeo
+## Tested Coding Environments
+The following development environments have been tested and are known to work with this project:
 
-1. We need the compiler env variables, so choose either (or do manually :P)
-
-   1. Start the `x64 Native Tools Command Prompt for VS 2022`.
-
-   2. Start a new CMD and run: (you might have to adjust the link depending on your vs version)
-      ```
-      "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
-      ```
-
-2.  Set install location. (like DAWN it should be the parent of the weBIGeo renderer location)
-    ```
-    set CMAKE_INSTALL_PREFIX=C:\tmp\webigeo\SDL
-    mkdir %CMAKE_INSTALL_PREFIX% && cd %CMAKE_INSTALL_PREFIX%
-    ```
-
-3.  Clone SDL, step into directory and checkout SDL2 branch. (The location doesnt matter, it's only for the temporary build files)
-    ```
-    git clone https://github.com/libsdl-org/SDL.git && cd SDL && git checkout SDL2
-    ```
-
-4.  Create and step into build directory
-    ```
-    mkdir build & cd build
-    ```
-
-5.  Configure and compile Release-Build (Debug not necessary)
-    ```
-    cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release && ninja
-    ```
-
-6.  Install SDL files
-    ```
-    ninja install
-    ```
-
-7.  Delete Build and Source Files
-    ```
-    cd ../.. && rmdir /S /Q SDL
-    ```    
+- **Qt Creator 18** [recommended]
+  - With Qt Creator we recommend using the default Kits (see above)
+- **Visual Studio Code** with the following extensions:
+  - [C/C++](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools)
+  - [CMake Tools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools)
+  - [WGSL](https://marketplace.visualstudio.com/items?itemName=PolyMeilex.wgsl)
+- **Visual Studio 2022 Community**

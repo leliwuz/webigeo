@@ -19,10 +19,9 @@
 #include "ShaderModuleManager.h"
 
 #include <QFile>
-#include <iostream>
+#include <QDebug>
 #include <memory>
-#include <regex>
-#include <unordered_set>
+#include <chrono>
 #include <webgpu/raii/base_types.h>
 #include <webgpu/util/string_cast.h>
 
@@ -30,10 +29,22 @@ namespace webgpu_engine {
 
 ShaderModuleManager::ShaderModuleManager(WGPUDevice device)
     : m_device(device)
-{}
+{
+    // Set up the file reader for the preprocessor
+    m_preprocessor.set_file_reader([](const std::string& name) {
+        return ShaderModuleManager::read_file_contents(name);
+    });
+
+    // Set up error callback
+    m_preprocessor.set_error_callback([](const std::string& message) {
+        qFatal("%s", message.c_str());
+    });
+}
 
 void ShaderModuleManager::create_shader_modules()
 {
+    auto start = std::chrono::high_resolution_clock::now();
+
     m_render_tiles_shader_module = create_shader_module_for_file("render_tiles.wgsl");
     m_render_atmosphere_shader_module = create_shader_module_for_file("render_atmosphere.wgsl");
     m_render_lines_module = create_shader_module_for_file("render_lines.wgsl");
@@ -53,11 +64,15 @@ void ShaderModuleManager::create_shader_modules()
     m_mipmap_creation_compute_module = create_shader_module_for_file("compute/mipmap_creation_compute.wgsl");
     m_fxaa_compute_module = create_shader_module_for_file("compute/fxaa_compute.wgsl");
     m_iterative_simulation_compute_module = create_shader_module_for_file("compute/iterative_simulation_compute.wgsl");
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    qDebug() << "Shader module creation took" << duration.count() << "ms";
 }
 
 void ShaderModuleManager::release_shader_modules()
 {
-    m_shader_name_to_code.clear();
+    m_preprocessor.clear_cache();
 
     m_render_tiles_shader_module.release();
     m_compose_pass_shader_module.release();
@@ -113,27 +128,6 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::fxaa_compute() const { re
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::iterative_simulation_compute() const { return *m_iterative_simulation_compute_module; }
 
-std::string ShaderModuleManager::load_and_preprocess_without_cache(const std::string& path)
-{
-    // TODO de-duplicate code
-    std::string preprocessed_code = read_file_contents(path);
-    std::regex include_regex("#include \"([/a-zA-Z0-9 ._-]+)\"");
-    std::unordered_set<std::string> already_included {};
-    size_t search_start_pos = 0;
-    for (std::cmatch include_match {}; std::regex_search(preprocessed_code.c_str() + search_start_pos, include_match, include_regex);) {
-        const std::string included_filename = include_match[1].str(); // first submatch
-        if (already_included.contains(included_filename)) {
-            preprocessed_code.replace(search_start_pos + include_match.position(), include_match.length(), "");
-        } else {
-            const std::string included_file_contents = read_file_contents(included_filename);
-            preprocessed_code.replace(search_start_pos + include_match.position(), include_match.length(), included_file_contents);
-        }
-        search_start_pos += include_match.position();
-        already_included.insert(included_filename);
-    }
-    return preprocessed_code;
-}
-
 std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module(WGPUDevice device, const std::string& label, const std::string& code)
 {
     WGPUShaderSourceWGSL wgsl_desc {};
@@ -150,54 +144,49 @@ std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_m
 
 std::string ShaderModuleManager::read_file_contents(const std::string& name)
 {
-#ifdef __EMSCRIPTEN__
-    const auto path = QRC_PREFIX / name; // use qrc file prefix for emscripten builds
+    static bool local_available = false;
+    static bool initialized = false;
+
+    if (!initialized) {
+        initialized = true;
+
+#if defined(ALP_ENABLE_WGSL_MINIFICATION) || defined(__EMSCRIPTEN__)
+        // If minification is enabled or building for Emscripten, always use embedded shaders
+        local_available = false;
+        qInfo("Using embedded shaders");
 #else
-    const auto path = LOCAL_PREFIX / name; // use external (local) file path for native builds
+        // For native builds, try local shaders first
+        const auto test_path = LOCAL_PREFIX / name;
+        QFile test_file(test_path);
+        if (test_file.exists()) {
+            local_available = true;
+            qInfo("Using local shaders from: %s", LOCAL_PREFIX.string().c_str());
+        } else {
+            local_available = false;
+            qInfo("Local shaders not found, using embedded shaders");
+        }
 #endif
+    }
+
+    const auto path = local_available ? (LOCAL_PREFIX / name) : (QRC_PREFIX / name);
     auto file = QFile(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        std::cerr << "could not open shader file " << path << std::endl;
-        throw std::runtime_error("could not open file " + path.string());
+        qFatal("Could not open shader file %s", path.string().c_str());
     }
-    return file.readAll().toStdString();
+    auto contents = file.readAll();
+    return contents.toStdString();
 }
 
-std::string ShaderModuleManager::get_file_contents_with_cache(const std::string& name)
+std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module_for_file(const std::string& name)
 {
-    const auto found_it = m_shader_name_to_code.find(name);
-    if (found_it != m_shader_name_to_code.end()) {
-        return found_it->second;
-    }
-    const auto file_contents = read_file_contents(name);
-    m_shader_name_to_code[name] = file_contents;
-    return file_contents;
+    const std::string code = m_preprocessor.preprocess_file(name);
+    return create_shader_module(m_device, name, code);
 }
 
-std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module_for_file(const std::string& filename)
+std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module_for_code(const std::string& code, const std::string& label)
 {
-    const std::string code = preprocess(get_file_contents_with_cache(filename));
-    return create_shader_module(m_device, filename, code);
-}
-
-std::string ShaderModuleManager::preprocess(const std::string& code)
-{
-    std::string preprocessed_code = code;
-    std::regex include_regex("#include \"([/a-zA-Z0-9 ._-]+)\"");
-    std::unordered_set<std::string> already_included {};
-    size_t search_start_pos = 0;
-    for (std::cmatch include_match {}; std::regex_search(preprocessed_code.c_str() + search_start_pos, include_match, include_regex);) {
-        const std::string included_filename = include_match[1].str(); // first submatch
-        if (already_included.contains(included_filename)) {
-            preprocessed_code.replace(search_start_pos + include_match.position(), include_match.length(), "");
-        } else {
-            const std::string included_file_contents = get_file_contents_with_cache(included_filename);
-            preprocessed_code.replace(search_start_pos + include_match.position(), include_match.length(), included_file_contents);
-        }
-        search_start_pos += include_match.position();
-        already_included.insert(included_filename);
-    }
-    return preprocessed_code;
+    const std::string preprocessed_code = m_preprocessor.preprocess_code(code);
+    return create_shader_module(m_device, label, preprocessed_code);
 }
 
 } // namespace webgpu_engine

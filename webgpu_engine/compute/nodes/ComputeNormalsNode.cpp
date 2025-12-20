@@ -49,8 +49,8 @@ void ComputeNormalsNode::run_impl()
     const auto& bounds = *std::get<data_type<const radix::geometry::Aabb<2, double>*>()>(input_socket("bounds").get_connected_data());
     const auto& height_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("height texture").get_connected_data());
 
-    m_output_texture
-        = create_normals_texture(m_device, height_texture.texture().width(), height_texture.texture().height(), m_settings.format, m_settings.usage);
+    m_output_texture = create_normals_texture(
+        m_device, uint32_t(height_texture.texture().width()), uint32_t(height_texture.texture().height()), m_settings.format, m_settings.usage);
 
     m_normals_settings_uniform_buffer.data.aabb_min = glm::fvec2(bounds.min);
     m_normals_settings_uniform_buffer.data.aabb_max = glm::fvec2(bounds.max);

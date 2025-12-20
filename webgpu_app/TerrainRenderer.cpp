@@ -131,6 +131,9 @@ void TerrainRenderer::render_gui()
 
 void TerrainRenderer::poll_events()
 {
+    // TODO hack, makes animations work
+    m_camera_controller->advance_camera();
+
     // NOTE: The following line is not strictly necessary, we discovered that SDL somehow
     // triggers the processing of qt events. On the web we assume that Qt attaches itself to
     // the emscripten event loop.
@@ -172,10 +175,11 @@ void TerrainRenderer::poll_events()
 
 void TerrainRenderer::render() {
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
-    m_cputimer->start();
 
     WGPUSurfaceTexture surface_texture;
     wgpuSurfaceGetCurrentTexture(m_surface, &surface_texture);
+
+    m_cputimer->start();
 
     if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal
         && surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
@@ -241,13 +245,13 @@ void TerrainRenderer::render() {
     if (webgpu::isTimingSupported())
         m_gputimer->resolve();
 
+    m_cputimer->stop();
+
 #ifndef __EMSCRIPTEN__
     // Surface present in the WEB is handled by the browser!
     wgpuSurfacePresent(m_surface);
     wgpuDeviceTick(m_device);
 #endif
-
-    m_cputimer->stop();
 }
 
 void TerrainRenderer::start() {
@@ -287,12 +291,6 @@ void TerrainRenderer::start() {
         &nucleus::camera::Controller::set_model_matrix);
 
     connect(m_webgpu_window.get(), &nucleus::AbstractRenderWindow::update_requested, this, &TerrainRenderer::schedule_update);
-
-#ifdef __EMSCRIPTEN__
-    // connect(&WebInterop::instance(), &WebInterop::mouse_button_event, m_input_mapper.get(), &InputMapper::on_mouse_button_callback);
-    // connect(&WebInterop::instance(), &WebInterop::mouse_position_event, m_input_mapper.get(), &InputMapper::on_cursor_position_callback);
-#endif
-
     connect(m_input_mapper.get(), &InputMapper::key_pressed, this, &TerrainRenderer::handle_shortcuts);
 
     m_webgpu_window->set_wgpu_context(m_instance, m_device, m_adapter, m_surface, m_queue, m_context->engine_context());

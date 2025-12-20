@@ -24,6 +24,7 @@
 #include <thread>
 
 #include <webgpu_engine/compute/nodes/BufferExportNode.h>
+#include <webgpu_engine/compute/nodes/BufferToTextureNode.h>
 #include <webgpu_engine/compute/nodes/ComputeAvalancheTrajectoriesNode.h>
 #include <webgpu_engine/compute/nodes/LoadRegionAabbNode.h>
 #include <webgpu_engine/compute/nodes/LoadTextureNode.h>
@@ -36,7 +37,9 @@
 namespace webigeo_eval {
 
 WebigeoApp::WebigeoApp()
-    : m_device { util::init_webgpu_device() }
+    : m_webgpu_instance { util::init_webgpu_instance() }
+    , m_webgpu_adapter { util::init_webgpu_adapter(m_webgpu_instance) }
+    , m_device { util::init_webgpu_device(m_webgpu_instance, m_webgpu_adapter) }
     , m_context { std::make_unique<webgpu_engine::Context>() }
 {
     m_context->set_webgpu_device(m_device);
@@ -55,7 +58,7 @@ void WebigeoApp::run()
 
     while (!m_run_ended) {
         std::this_thread::sleep_for(std::chrono::microseconds(500));
-        wgpuDeviceTick(m_device); // needed to receive buffer/texture readback callbacks
+        wgpuInstanceProcessEvents(m_webgpu_instance); // needed to receive buffer/texture readback callbacks
     }
 
     // write settings and timings
@@ -90,31 +93,46 @@ void WebigeoApp::update_settings(const Settings& node_graph_settings)
 
     // trajectories settings
     ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
-    trajectory_settings.resolution_multiplier = node_graph_settings.trajectory_resolution_multiplier;
-    trajectory_settings.num_steps = node_graph_settings.num_steps;
-    trajectory_settings.step_length = 1.0f;
-    trajectory_settings.num_paths_per_release_cell = node_graph_settings.num_paths_per_release_cell;
-    trajectory_settings.random_contribution = node_graph_settings.random_contribution;
-    trajectory_settings.persistence_contribution = node_graph_settings.persistence_contribution;
+    trajectory_settings.resolution_multiplier = node_graph_settings.resolution_multiplier;
+    trajectory_settings.num_runs = node_graph_settings.num_simulation_runs;
+    trajectory_settings.num_paths_per_release_cell = node_graph_settings.num_particles_per_release_cell;
+    trajectory_settings.num_steps = node_graph_settings.num_simulation_steps;
+    trajectory_settings.step_length = node_graph_settings.simulation_step_length;
     trajectory_settings.random_seed = node_graph_settings.random_seed;
 
+    trajectory_settings.random_contribution = node_graph_settings.max_random_deviation;
+    trajectory_settings.persistence_contribution = node_graph_settings.persistence;
+
     trajectory_settings.active_runout_model = static_cast<ComputeAvalancheTrajectoriesNode::FrictionModelType>(node_graph_settings.friction_model_type);
+    trajectory_settings.runout_flowpy = {};
+    trajectory_settings.runout_flowpy.alpha = glm::radians(node_graph_settings.max_runout_angle);
     trajectory_settings.runout_perla = {};
-    trajectory_settings.runout_flowpy.alpha = glm::radians(node_graph_settings.runout_flowpy_alpha);
+
     trajectory_settings.active_model = static_cast<ComputeAvalancheTrajectoriesNode::PhysicsModelType>(node_graph_settings.model_type);
     trajectory_settings.model2.friction_coeff = node_graph_settings.friction_coeff;
     trajectory_settings.model2.drag_coeff = node_graph_settings.drag_coeff;
     // trajectory_settings.model2.gravity = node_graph_settings.slab_thickness;
     // trajectory_settings.model2.mass = node_graph_settings.density;
 
-
     auto& trajectories_node = m_node_graph->get_node_as<ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
     trajectories_node.set_settings(trajectory_settings);
+    {
+        BufferToTextureNode& node = m_node_graph->get_node_as<BufferToTextureNode>("buffer_to_texture_node");
+        BufferToTextureNode::BufferToTextureSettings& settings = node.settings();
+        settings.color_map_bounds = { 0.0f, 40.0f };
+        settings.transparency_map_bounds = { 0.0f, 1.0f };
+        settings.use_bin_interpolation = false;
+        settings.use_transparency_buffer = true;
+        settings.texture_filter_mode = WGPUFilterMode_Nearest;
+        settings.texture_mipmap_filter_mode = WGPUMipmapFilterMode_Nearest;
+        settings.texture_max_aniostropy = 1;
+        settings.create_mipmaps = false;
+    }
 
     {
         LoadTextureNode::LoadTextureNodeSettings settings;
         settings.format = WGPUTextureFormat_RGBA8Unorm;
-        settings.file_path = node_graph_settings.release_points_texture_path;
+        settings.file_path = node_graph_settings.release_cells_texture_path;
         m_node_graph->get_node_as<LoadTextureNode>("load_rp_node").set_settings(settings);
     }
 

@@ -22,6 +22,7 @@
 #include <map>
 #include <string>
 #include <webgpu/raii/base_types.h>
+#include <webgpu/util/ShaderPreprocessor.h>
 #include <webgpu/webgpu.h>
 
 namespace webgpu_engine {
@@ -58,20 +59,17 @@ public:
 
     const webgpu::raii::ShaderModule& mipmap_creation_compute() const;
 
-    static std::string load_and_preprocess_without_cache(const std::string& path);
     static std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(WGPUDevice device, const std::string& label, const std::string& code);
 
-    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module_for_file(const std::string& filename);
+    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module_for_file(const std::string& name);
+    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module_for_code(const std::string& code, const std::string& label = "inline_shader");
 
 private:
     static std::string read_file_contents(const std::string& name);
-    std::string get_file_contents_with_cache(const std::string& name);
-    std::string preprocess(const std::string& code);
 
 private:
     WGPUDevice m_device;
-
-    std::map<std::string, std::string> m_shader_name_to_code;
+    webgpu::util::ShaderPreprocessor m_preprocessor;
 
     std::unique_ptr<webgpu::raii::ShaderModule> m_render_tiles_shader_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_render_atmosphere_shader_module;

@@ -30,7 +30,7 @@ WGPURenderPassDescriptor RenderPassEncoder::create_render_pass_descriptor(
     m_color_attachment.loadOp = WGPULoadOp::WGPULoadOp_Clear;
     m_color_attachment.storeOp = WGPUStoreOp::WGPUStoreOp_Store;
     m_color_attachment.clearValue = WGPUColor { 0.0, 0.0, 0.0, 0.0 };
-    m_color_attachment.depthSlice = -1;
+    m_color_attachment.depthSlice = UINT32_MAX;
 
     WGPURenderPassDescriptor render_pass_desc {};
     render_pass_desc.colorAttachmentCount = 1;

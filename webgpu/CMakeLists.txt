@@ -1,6 +1,7 @@
 #############################################################################
 # weBIGeo
 # Copyright (C) 2024 Gerald Kimmersdorfer
+# Copyright (C) 2025 Patrick Komon
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,9 +22,10 @@ project(alpine-renderer-webgpu LANGUAGES C CXX)
 # NOTE: The idea behind this target is to accumulate all the webgpu related things that are platform
 # dependent such that we only have the webgpu cmake target for the other projects to link against.
 
-set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/../dawn" CACHE PATH "path to the dawn repo with debug and release builds. (only necessary for native build)")
-
-set(ALP_SDL_INSTALL_DIR "${CMAKE_SOURCE_DIR}/../SDL" CACHE PATH "Path to the SDL installation directory")
+set(ALP_DAWN_VERSION "20251204.180718") # Version of Dawn to download (see https://github.com/google/dawn/releases)
+set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/dawn")
+set(ALP_SDL_INSTALL_DIR "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl")
+set(ALP_DAWN_PORT_DIR "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/emdawnwebgpu_pkg/emdawnwebgpu.port.py")
 
 set(SOURCES
 
@@ -43,6 +45,7 @@ set(SOURCES
     util/VertexBufferInfo.h util/VertexBufferInfo.cpp
     util/VertexFormat.h
     util/string_cast.h util/string_cast.cpp
+    util/ShaderPreprocessor.h util/ShaderPreprocessor.cpp
 
     timing/GuiTimerManager.h timing/GuiTimerManager.cpp
     timing/TimerInterface.h timing/TimerInterface.cpp
@@ -55,48 +58,121 @@ set(SOURCES
 
 add_library(webgpu STATIC ${SOURCES})
 
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
 if (EMSCRIPTEN)
+
+    # Ensure Dawn port exists, otherwise fetch it
+    if (NOT EXISTS "${ALP_DAWN_PORT_DIR}")
+        message(STATUS "Dawn port not found, fetching...")
+
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE}
+                "${CMAKE_SOURCE_DIR}/scripts/fetch_dawn_port.py"
+                --dawn-version "${ALP_DAWN_VERSION}"
+                --extern-dir "${ALP_EXTERN_DIR}"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            RESULT_VARIABLE FETCH_RESULT
+        )
+
+        if (NOT FETCH_RESULT EQUAL 0)
+            message(FATAL_ERROR "Failed to fetch Dawn Emscripten port.")
+        endif()
+    endif()
+
+
+
     target_compile_options(webgpu PUBLIC
-        "--use-port=sdl2"
-        "--use-port=emdawnwebgpu" # could use this instead of locally compiled emdawnwebgpu
+    "--use-port=sdl2"
+    "--use-port=${ALP_DAWN_PORT_DIR}"
     )
 
-    # using self-compiled version of emdawnwebgpu_cpp seems to introduce compile errors, stick to --use-port for now
-    #target_link_libraries(webgpu PUBLIC emdawnwebgpu_cpp)
 
     target_link_options(webgpu PUBLIC
-        "-sASYNCIFY=1"
-        "--use-port=sdl2"
-        "--use-port=emdawnwebgpu" # could use this instead of locally compiled emdawnwebgpu
+    "-sASYNCIFY=1"
+    "--use-port=sdl2"
+    "--use-port=${ALP_DAWN_PORT_DIR}"
     )
 
 else()
 
-    # set configuration variables for Dawn build
-    set(DAWN_BUILD_MONOLITHIC_LIBRARY STATIC)
-    set(DAWN_FETCH_DEPENDENCIES ON)
-    set(DAWN_FORCE_SYSTEM_COMPONENT_LOAD ON) # currently needed, see https://issues.chromium.org/issues/441317244
-    set(TINT_BUILD_SPV_READER OFF)
-    set(TINT_BUILD_TESTS OFF)
-    set(TINT_BUILD_FUZZERS OFF)
-    set(TINT_BUILD_BENCHMARKS OFF)
-    set(TINT_BUILD_AS_OTHER_OS OFF)
-    set(DAWN_BUILD_SAMPLES OFF)
-    set(DAWN_ENABLE_D3D11 OFF)
-    set(DAWN_ENABLE_D3D12 OFF)
-    set(DAWN_ENABLE_METAL OFF)
-    set(DAWN_ENABLE_NULL OFF)
-    set(DAWN_ENABLE_DESKTOP_GL OFF)
-    set(DAWN_ENABLE_OPENGLES OFF)
-    set(DAWN_ENABLE_VULKAN ON)
-    set(DAWN_USE_WINDOWS_UI OFF)
-    #set(DAWN_USE_GLFW OFF) # TODO turning this off leads to a linker error, "cant find glfw.lib" - how/where/why are we trying to link to glfw?
+    # Ensure Dawn is installed
+    if (NOT EXISTS "${ALP_DAWN_DIR}/install/${CMAKE_BUILD_TYPE}/lib/cmake/Dawn")
+        message(STATUS "Dawn installation missing - running install_dawn.py...")
 
-    # manually cloned at ALP_DAWN_DIR
-    add_subdirectory("${ALP_DAWN_DIR}" "${ALP_DAWN_DIR}/build/${CMAKE_CXX_COMPILER_ID}_${CMAKE_CXX_COMPILER_VERSION}_${CMAKE_BUILD_TYPE}" EXCLUDE_FROM_ALL)
+        if (NOT DEFINED ALP_CMAKE_EXECUTABLE)
+            find_program(ALP_CMAKE_EXECUTABLE cmake)
+            if (NOT ALP_CMAKE_EXECUTABLE)
+                message(FATAL_ERROR "cmake not found in PATH")
+            endif()
+        endif()
 
-    # add dawn libraries to webgpu library
-    target_link_libraries(webgpu PUBLIC webgpu_dawn)
+        if (NOT DEFINED ALP_NINJA_EXECUTABLE)
+            find_program(ALP_NINJA_EXECUTABLE ninja)
+            if (NOT ALP_NINJA_EXECUTABLE)
+                message(FATAL_ERROR "ninja not found in PATH")
+            endif()
+        endif()
+
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/install_dawn.py"
+                --dawn-version ${ALP_DAWN_VERSION}
+                --extern-dir "${ALP_EXTERN_DIR}"
+                --cmake-path "${ALP_CMAKE_EXECUTABLE}"
+                --ninja-path "${ALP_NINJA_EXECUTABLE}"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            RESULT_VARIABLE DAWN_RESULT
+        )
+
+        if (NOT DAWN_RESULT EQUAL 0)
+            message(FATAL_ERROR "install_dawn.py failed.")
+        endif()
+    endif()
+
+
+
+    set(Dawn_DIR "${ALP_DAWN_DIR}/install/${CMAKE_BUILD_TYPE}/lib/cmake/Dawn")
+    find_package(Dawn REQUIRED)
+    target_link_libraries(webgpu PUBLIC dawn::webgpu_dawn)
+
+    # Ensure SDL is installed
+    if (NOT EXISTS "${ALP_SDL_INSTALL_DIR}")
+        message(STATUS "SDL not found - running install_sdl.py...")
+
+        if (NOT DEFINED ALP_CMAKE_EXECUTABLE)
+            find_program(ALP_CMAKE_EXECUTABLE cmake)
+            if (NOT ALP_CMAKE_EXECUTABLE)
+                message(FATAL_ERROR "cmake not found")
+            endif()
+        endif()
+
+        if (NOT DEFINED ALP_NINJA_EXECUTABLE)
+            find_program(ALP_NINJA_EXECUTABLE ninja)
+            if (NOT ALP_NINJA_EXECUTABLE)
+                message(FATAL_ERROR "ninja not found")
+            endif()
+        endif()
+
+        if (NOT DEFINED ALP_GIT_EXECUTABLE)
+            find_program(ALP_GIT_EXECUTABLE git)
+            if (NOT ALP_GIT_EXECUTABLE)
+                message(FATAL_ERROR "git not found")
+            endif()
+        endif()
+
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/install_sdl.py"
+                --install-prefix "${ALP_SDL_INSTALL_DIR}"
+                --cmake-path "${ALP_CMAKE_EXECUTABLE}"
+                --ninja-path "${ALP_NINJA_EXECUTABLE}"
+                --git-path "${ALP_GIT_EXECUTABLE}"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            RESULT_VARIABLE SDL_RESULT
+        )
+        if (NOT SDL_RESULT EQUAL 0)
+            message(FATAL_ERROR "install_sdl.py failed.")
+        endif()
+    endif()
 
     # find and add SDL2 (you may install it to the default install folder or ALP_SDL_INSTALL_DIR)
     # Add ALP_SDL_INSTALL_DIR to CMake's search path for find_package
@@ -104,8 +180,9 @@ else()
     find_package(SDL2 REQUIRED)
     target_link_libraries(webgpu PUBLIC SDL2::SDL2 SDL2::SDL2main)
 
+    # TODO verify whether this is still needed and adapt accordingly
     # If tint_lang_hlsl_writer.lib within ${ALP_DAWN_DIR}/build/debug/src exists DAWN was compiled with DX-Backends.
-    file(GLOB_RECURSE TINT_LIB_PATH "${ALP_DAWN_DIR}/build/debug/src/tint_lang_hlsl_writer.lib")
+    file(GLOB_RECURSE TINT_LIB_PATH "${ALP_DAWN_DIR}/out/Debug/src/tint/tint_lang_hlsl_writer.lib")
     if (TINT_LIB_PATH)
         # NOTE: With Direct3D Backends we additionally need to link against dx.
         message(STATUS "Found tint_lang_hlsl_writer.lib, DAWN seems to be compiled with DX-Backends. Will link against dxguid.lib.")
