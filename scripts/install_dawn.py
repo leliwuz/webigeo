@@ -5,8 +5,20 @@ import sys
 import os
 import tempfile
 import shutil
+import stat
+import subprocess
 
 from setup_utils import log, fail, download, extract_zip, run_command
+
+
+def handle_remove_readonly(func, path, exc):
+    """Error handler for shutil.rmtree to handle read-only files on Windows."""
+    import stat
+    if not os.access(path, os.W_OK):
+        os.chmod(path, stat.S_IWUSR | stat.S_IRUSR)
+        func(path)
+    else:
+        raise exc[1].with_traceback(exc[2])
 
 
 def main():
@@ -42,7 +54,7 @@ def main():
 
         if os.path.exists(dawn_dir):
             log(f"Removing existing Dawn directory: {dawn_dir}")
-            shutil.rmtree(dawn_dir)
+            shutil.rmtree(dawn_dir, onerror=handle_remove_readonly)
 
         log(f"Moving extracted Dawn to {dawn_dir}")
         shutil.move(extracted_dir, dawn_dir)
@@ -101,9 +113,38 @@ def main():
             if entry != "install":
                 full_path = os.path.join(dawn_dir, entry)
                 if os.path.isdir(full_path):
-                    shutil.rmtree(full_path, ignore_errors=True)
+                    shutil.rmtree(full_path, ignore_errors=True, onerror=handle_remove_readonly)
                 else:
-                    os.remove(full_path)
+                    try:
+                        os.remove(full_path)
+                    except PermissionError:
+                        os.chmod(full_path, stat.S_IWUSR | stat.S_IRUSR)
+                        os.remove(full_path)
+
+        # For multi-config generators (like Visual Studio), also symlink Release as default
+        log("Setting up default Release configuration for multi-config generators")
+        release_install = os.path.join(dawn_dir, "install", "Release")
+        if os.path.exists(release_install):
+            default_link = os.path.join(dawn_dir, "install_default")
+            if os.path.exists(default_link):
+                try:
+                    if os.path.islink(default_link):
+                        os.unlink(default_link)
+                    else:
+                        shutil.rmtree(default_link, onerror=handle_remove_readonly)
+                except Exception:
+                    pass
+            try:
+                if sys.platform == "win32":
+                    # On Windows, create a junction instead of a symlink
+                    import subprocess as sp
+                    sp.run(["cmd", "/c", f"mklink /J \"{default_link}\" \"{release_install}\""], 
+                           check=False, capture_output=True)
+                else:
+                    os.symlink(release_install, default_link)
+                log(f"Created default link to {release_install}")
+            except Exception as e:
+                log(f"Warning: Could not create default link: {e}")
 
         log(f"Successfully installed Dawn to {dawn_dir}/install")
         return 0
@@ -111,9 +152,9 @@ def main():
     except Exception as e:
         log(f"Installation failed: {e}")
         if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+            shutil.rmtree(tmp_dir, ignore_errors=True, onerror=handle_remove_readonly)
         if os.path.exists(dawn_dir):
-            shutil.rmtree(dawn_dir, ignore_errors=True)
+            shutil.rmtree(dawn_dir, ignore_errors=True, onerror=handle_remove_readonly)
         sys.exit(1)
 
     finally:

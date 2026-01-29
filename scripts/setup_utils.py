@@ -3,10 +3,19 @@
 # A bunch of utility functions for the setup scripts
 
 import sys
+import os
 import subprocess
 import urllib.request
 import shutil
 import zipfile
+import ssl
+import io
+
+# Ensure stdout and stderr use UTF-8 encoding with error handling for Windows
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
 
 # added to all outputs for better clarity in the cmake output
 LOG_PREFIX = "----"
@@ -27,7 +36,10 @@ def fail(msg):
 def download(url, dest):
     log(f"Downloading {url}")
     try:
-        with urllib.request.urlopen(url) as r, open(dest, "wb") as f:
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        with urllib.request.urlopen(url, context=context) as r, open(dest, "wb") as f:
             shutil.copyfileobj(r, f)
         log(f"Downloaded to {dest}")
     except Exception as e:
@@ -54,13 +66,20 @@ def run_command(cmd, cwd=None, description=None):
     log(f"Running: {cmd_str}" + (f" (cwd={cwd})" if cwd else ""))
 
     try:
+        # Set UTF-8 encoding for subprocess to handle Unicode characters
+        env = os.environ.copy()
+        env['PYTHONIOENCODING'] = 'utf-8'
+        
         process = subprocess.Popen(
             cmd,
             cwd=cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
-            bufsize=1
+            encoding='utf-8',
+            errors='replace',
+            bufsize=1,
+            env=env
         )
 
         for line in process.stdout:

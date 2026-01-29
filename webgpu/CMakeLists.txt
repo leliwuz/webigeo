@@ -96,8 +96,29 @@ if (EMSCRIPTEN)
 
 else()
 
-    # Ensure Dawn is installed
-    if (NOT EXISTS "${ALP_DAWN_DIR}/install/${CMAKE_BUILD_TYPE}/lib/cmake/Dawn")
+    # Ensure Dawn is installed for all required configurations
+    # For multi-config generators (like Visual Studio), we need both Debug and Release
+    # For single-config generators, we only need the current config
+    if(CMAKE_CONFIGURATION_TYPES)
+        # Multi-config generator (e.g., Visual Studio)
+        set(DAWN_CONFIGS_TO_CHECK Debug Release)
+    else()
+        # Single-config generator
+        if(CMAKE_BUILD_TYPE)
+            set(DAWN_CONFIGS_TO_CHECK "${CMAKE_BUILD_TYPE}")
+        else()
+            set(DAWN_CONFIGS_TO_CHECK Release)
+        endif()
+    endif()
+    
+    set(DAWN_MISSING FALSE)
+    foreach(cfg ${DAWN_CONFIGS_TO_CHECK})
+        if (NOT EXISTS "${ALP_DAWN_DIR}/install/${cfg}/lib/cmake/Dawn")
+            set(DAWN_MISSING TRUE)
+        endif()
+    endforeach()
+    
+    if (DAWN_MISSING)
         message(STATUS "Dawn installation missing - running install_dawn.py...")
 
         if (NOT DEFINED ALP_CMAKE_EXECUTABLE)
@@ -131,8 +152,41 @@ else()
 
 
 
-    set(Dawn_DIR "${ALP_DAWN_DIR}/install/${CMAKE_BUILD_TYPE}/lib/cmake/Dawn")
+    # For multi-config generators (like Visual Studio), we need both Debug and Release
+    # builds of Dawn to match the runtime library configuration
+    if(CMAKE_CONFIGURATION_TYPES)
+        # Multi-config: Try Debug first, fallback to Release if not available
+        if(EXISTS "${ALP_DAWN_DIR}/install/Debug/lib/cmake/Dawn")
+            set(Dawn_DIR "${ALP_DAWN_DIR}/install/Debug/lib/cmake/Dawn")
+        else()
+            set(Dawn_DIR "${ALP_DAWN_DIR}/install/Release/lib/cmake/Dawn")
+        endif()
+    else()
+        # Single-config generator: determine at configuration time
+        if(CMAKE_BUILD_TYPE)
+            set(DAWN_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+        else()
+            set(DAWN_BUILD_TYPE "Release")
+        endif()
+        set(Dawn_DIR "${ALP_DAWN_DIR}/install/${DAWN_BUILD_TYPE}/lib/cmake/Dawn")
+    endif()
+    
     find_package(Dawn REQUIRED)
+    
+    # For multi-config generators, override the library location based on build configuration
+    if(CMAKE_CONFIGURATION_TYPES AND TARGET dawn::webgpu_dawn)
+        set_target_properties(dawn::webgpu_dawn PROPERTIES
+            IMPORTED_LOCATION_DEBUG "${ALP_DAWN_DIR}/install/Debug/lib/webgpu_dawn.lib"
+            IMPORTED_LOCATION_RELEASE "${ALP_DAWN_DIR}/install/Release/lib/webgpu_dawn.lib"
+            IMPORTED_LOCATION_RELWITHDEBINFO "${ALP_DAWN_DIR}/install/Release/lib/webgpu_dawn.lib"
+            IMPORTED_LOCATION_MINSIZEREL "${ALP_DAWN_DIR}/install/Release/lib/webgpu_dawn.lib"
+        )
+        # Set the generic IMPORTED_LOCATION to avoid warnings
+        set_target_properties(dawn::webgpu_dawn PROPERTIES
+            IMPORTED_LOCATION "${ALP_DAWN_DIR}/install/Release/lib/webgpu_dawn.lib"
+        )
+    endif()
+    
     target_link_libraries(webgpu PUBLIC dawn::webgpu_dawn)
 
     # Ensure SDL is installed
