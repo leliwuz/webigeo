@@ -42,6 +42,7 @@ public:
     const webgpu::raii::ShaderModule& render_tiles() const;
     const webgpu::raii::ShaderModule& render_atmosphere() const;
     const webgpu::raii::ShaderModule& render_lines() const;
+    const webgpu::raii::ShaderModule& render_particles() const;
     const webgpu::raii::ShaderModule& compose_pass() const;
 
     const webgpu::raii::ShaderModule& normals_compute() const;
@@ -73,7 +74,8 @@ private:
 
     std::unique_ptr<webgpu::raii::ShaderModule> m_render_tiles_shader_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_render_atmosphere_shader_module;
-    std::unique_ptr<webgpu::raii::ShaderModule> m_render_lines_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_render_lines_module;    
+    std::unique_ptr<webgpu::raii::ShaderModule> m_render_particles_module;  
     std::unique_ptr<webgpu::raii::ShaderModule> m_compose_pass_shader_module;
 
     std::unique_ptr<webgpu::raii::ShaderModule> m_normals_compute_module;

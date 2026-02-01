@@ -34,6 +34,7 @@ set(SOURCES
     TileGeometry.h TileGeometry.cpp
     Buffer.h Buffer.cpp
     TrackRenderer.h TrackRenderer.cpp
+    ParticleRenderer.h ParticleRenderer.cpp
     Context.h Context.cpp
 
     compute/GpuHashMap.h compute/GpuHashMap.cpp

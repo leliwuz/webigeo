@@ -28,7 +28,6 @@
 #include "compute/nodes/LoadTextureNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "compute/nodes/TileExportNode.h"
-#include "compute/nodes/util.h"
 #include "nucleus/tile/drawing.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
@@ -89,6 +88,8 @@ void Window::initialise_gpu()
     create_bind_groups();
 
     m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_context->pipeline_manager());
+
+    m_particle_renderer = std::make_unique<ParticleRenderer>(m_device, *m_context->pipeline_manager());
 
     m_image_overlay_settings_uniform_buffer = std::make_unique<Buffer<ImageOverlaySettings>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_image_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(0);
@@ -190,10 +191,21 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
             command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
     }
 
+    // render particles to color buffer
+    if (m_particle_renderer->particle_count() > 0) {
+        if (m_animation_running) {//TODO: when animation started
+            m_particle_renderer->update_particles(ImGui::GetIO().DeltaTime);
+            m_needs_redraw = true;
+        }
+        m_particle_renderer->render(
+            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
+    }
+
     if (m_first_paint) {
         after_first_frame();
     }
-    m_needs_redraw = false;
+    if (!m_animation_running)
+        m_needs_redraw = false;
     m_first_paint = false;
 }
 
@@ -1623,6 +1635,7 @@ void Window::load_track_and_focus(const std::string& path)
         }
     }
     m_track_renderer->add_track(points);
+    m_particle_renderer->spawn_particle(points.front(), glm::u8vec4(255, 0, 0, 255)); // for testing, spawn a particle at start of track
 
     const auto track_aabb = nucleus::track::compute_world_aabb(*gpx_track);
     focus_region_3d(track_aabb);

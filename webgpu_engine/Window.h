@@ -23,6 +23,7 @@
 #include "PipelineSettings.h"
 #include "ShaderModuleManager.h"
 #include "TrackRenderer.h"
+#include "ParticleRenderer.h"
 #include "UniformBufferObjects.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "compute/NodeGraphRenderer.h"
@@ -173,8 +174,11 @@ private:
     bool m_needs_redraw = true;
     bool m_first_paint = true;
     bool m_is_first_pipeline_run = true;
+    bool m_animation_running = true;
 
     std::unique_ptr<TrackRenderer> m_track_renderer;
+
+    std::unique_ptr<ParticleRenderer> m_particle_renderer;
 
     std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
     ComputePipelineType m_active_compute_pipeline_type;
