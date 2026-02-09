@@ -1635,7 +1635,7 @@ void Window::load_track_and_focus(const std::string& path)
         }
     }
     m_track_renderer->add_track(points);
-    m_particle_renderer->spawn_particle(points.front(), glm::u8vec4(255, 0, 0, 255)); // for testing, spawn a particle at start of track
+    m_particle_renderer->spawn_particle(points.front(), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)); // for testing, spawn a particle at start of track
 
     const auto track_aabb = nucleus::track::compute_world_aabb(*gpx_track);
     focus_region_3d(track_aabb);

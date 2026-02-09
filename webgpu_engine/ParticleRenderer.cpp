@@ -3,6 +3,9 @@
 
 #include <webgpu/webgpu.h>
 #include "nucleus/srs.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace webgpu_engine{
 
@@ -11,63 +14,21 @@ ParticleRenderer::ParticleRenderer(WGPUDevice device, const PipelineManager& pip
     , m_queue { wgpuDeviceGetQueue(device) }
     , m_pipeline_manager { &pipeline_manager }
 {
-    // Create a 1x1 dummy texture for the bind group layout
-    WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = WGPUStringView { .data = "particle dummy texture", .length = WGPU_STRLEN };
-    texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
-    texture_desc.size = { 1, 1, 1 };
-    texture_desc.mipLevelCount = 1;
-    texture_desc.sampleCount = 1;
-    texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
-    texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
-
-    WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = WGPUStringView { .data = "particle dummy sampler", .length = WGPU_STRLEN };
-    sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
-    sampler_desc.lodMinClamp = 0.0f;
-    sampler_desc.lodMaxClamp = 1.0f;
-    sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    sampler_desc.maxAnisotropy = 1;
-
-    m_dummy_texture = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, texture_desc, sampler_desc);
+    // Generate sphere mesh (shared for all particles)
+    generate_sphere_mesh(16, 8, 2.0f);
     
-    // Write a white pixel to the dummy texture so particles are visible
-    uint8_t white_pixel[4] = { 255, 0, 0, 255 };
-    WGPUTexelCopyTextureInfo destination {};
-    destination.texture = m_dummy_texture->texture().handle();
-    destination.mipLevel = 0;
-    destination.origin = { 0, 0, 0 };
-    destination.aspect = WGPUTextureAspect_All;
-    
-    WGPUTexelCopyBufferLayout data_layout {};
-    data_layout.offset = 0;
-    data_layout.bytesPerRow = 4;
-    data_layout.rowsPerImage = 1;
-    
-    WGPUExtent3D write_size { 1, 1, 1 };
-    wgpuQueueWriteTexture(m_queue, &destination, white_pixel, 4, &data_layout, &write_size);
-    
-    wgpuQueueSubmit(m_queue, 0, nullptr);
-
-    spawn_particle(Coordinates{46.6,13.7,2000.6}, glm::vec4{255.f,0,0,1.f});
+    spawn_particle(Coordinates{46.6,13.7,2000.6}, glm::vec4{1.f,1.f,1.f,1.f});
 }
 
 
 size_t ParticleRenderer::spawn_particle(const Coordinates& coordinate, const glm::vec4& color, 
-                                         const glm::dvec3& velocity, float lifetime)
+                                         const glm::dvec3& velocity)
 {
     // Store CPU-side particle state
     ParticleState state;
     state.position = coordinate;
     state.velocity = velocity;
     state.color = color;
-    state.size = 50.0f;
-    state.lifetime = lifetime;
     m_particle_states.push_back(state);
     
     // Convert coordinate to world position
@@ -82,19 +43,18 @@ size_t ParticleRenderer::spawn_particle(const Coordinates& coordinate, const glm
     auto config_buffer = std::make_unique<webgpu_engine::Buffer<ParticleConfig>>(
         m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
     config_buffer->data.color = color;
-    config_buffer->data.size = 50.0f;
     config_buffer->update_gpu_data(m_queue);
 
     m_particle_config_buffers.emplace_back(std::move(config_buffer));
 
-    // Create bind group for this particle (positions, config, texture, sampler)
+    // Create bind group for this particle (positions, config, sphere vertices, sphere normals)
     m_bind_groups.emplace_back(std::make_unique<webgpu::raii::BindGroup>(
         m_device, m_pipeline_manager->particles_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> {
             m_position_buffers.back()->create_bind_group_entry(0),
             m_particle_config_buffers.back()->raw_buffer().create_bind_group_entry(1),
-            m_dummy_texture->texture_view().create_bind_group_entry(2),
-            m_dummy_texture->sampler().create_bind_group_entry(3)
+            m_sphere_vertices->create_bind_group_entry(2),
+            m_sphere_normals->create_bind_group_entry(3)
         }));
     
     return m_particle_states.size() - 1;  // Return particle ID
@@ -116,15 +76,6 @@ void ParticleRenderer::update_particles(float delta_time)
 {
     for (size_t i = 0; i < m_particle_states.size(); ++i) {
         auto& state = m_particle_states[i];
-        
-        // Update lifetime
-        if (state.lifetime > 0.0f) {
-            state.lifetime -= delta_time;
-            if (state.lifetime <= 0.0f) {
-                // Particle expired - could remove it here
-                continue;
-            }
-        }
         
         // Apply velocity to position
         state.position += state.velocity * delta_time;
@@ -172,14 +123,96 @@ void ParticleRenderer::render(WGPUCommandEncoder command_encoder,
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 1, camera_config.handle(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 2, depth_texture.handle(), 0, nullptr);
     
-    // Draw each particle
+    // Draw each particle (using shared sphere mesh)
     for (size_t i = 0; i < m_bind_groups.size(); i++) {
-        // Bind particle-specific group (group 3: positions, config, texture, sampler)
+        // Bind particle-specific group (group 3: positions, config, sphere vertices, sphere normals)
         wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 3, m_bind_groups.at(i)->handle(), 0, nullptr);
         
-        // Draw 4 vertices (triangle strip for quad), 1 instance (this particle)
-        wgpuRenderPassEncoderDraw(render_pass.handle(), 4, 1, 0, 0);
+        // Draw sphere vertices with instancing
+        wgpuRenderPassEncoderDraw(render_pass.handle(), m_sphere_index_count, 1, 0, 0);
     }
+}
+
+void ParticleRenderer::generate_sphere_mesh(uint32_t longitude_segments, uint32_t latitude_segments, float radius)
+{
+    std::vector<glm::vec3> positions;
+    std::vector<uint32_t> indices;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec2> uv; // Not used yet
+
+    positions.push_back({0.0f, radius, 0.0f});
+    positions.push_back({0.0f, -radius, 0.0f});
+    normals.push_back({0.0f, 1.0f, 0.0f});
+    normals.push_back({0.0f, -1.0f, 0.0f});
+    uv.push_back(glm::vec2(0.f,0.f));
+    uv.push_back(glm::vec2(0.f,1.f));
+
+    for (uint32_t j = 0; j < longitude_segments; j++) {
+        indices.push_back(0);
+        indices.push_back(j == longitude_segments - 1 ? 2 : (j + 3));
+        indices.push_back(2 + j);
+
+        indices.push_back(2 + (latitude_segments - 2) * longitude_segments + j);
+        indices.push_back(
+            j == longitude_segments - 1 ? 2 + (latitude_segments - 2) * longitude_segments
+                                        : 2 + (latitude_segments - 2) * longitude_segments + j + 1
+        );
+        indices.push_back(1);
+    }
+    
+    // vertices and rings
+    for (uint32_t i = 1; i < latitude_segments; i++) {
+        float verticalAngle = float(i) * glm::pi<float>() / float(latitude_segments);
+        for (uint32_t j = 0; j < longitude_segments; j++) {
+            float horizontalAngle = float(j) * 2.0f * glm::pi<float>() / float(longitude_segments);
+            glm::vec3 position = glm::vec3(
+                radius * glm::sin(verticalAngle) * glm::cos(horizontalAngle),
+                radius * glm::cos(verticalAngle),
+                radius * glm::sin(verticalAngle) * glm::sin(horizontalAngle)
+            );
+            positions.push_back(position);
+
+            uv.push_back(glm::vec2(1.0f - float(j) / float(longitude_segments), float(i) / float(latitude_segments)));
+
+            normals.push_back(glm::normalize(position));
+
+            if (i == 1)
+                continue;
+
+            indices.push_back(2 + (i - 1) * longitude_segments + j);
+            indices.push_back(j == longitude_segments - 1 ? 2 + (i - 2) * longitude_segments : 2 + (i - 2) * longitude_segments + j + 1);
+            indices.push_back(j == longitude_segments - 1 ? 2 + (i - 1) * longitude_segments : 2 + (i - 1) * longitude_segments + j + 1);
+
+            indices.push_back(j == longitude_segments - 1 ? 2 + (i - 2) * longitude_segments : 2 + (i - 2) * longitude_segments + j + 1);
+            indices.push_back(2 + (i - 1) * longitude_segments + j);
+            indices.push_back(2 + (i - 2) * longitude_segments + j);
+        }
+    }
+    
+    // Expand the indexed mesh into a non-indexed mesh (de-indexing)
+    // Use vec4 to match storage buffer alignment (vec3 has 16-byte alignment in WGSL)
+    std::vector<glm::vec4> expanded_positions;
+    std::vector<glm::vec4> expanded_normals;
+    expanded_positions.reserve(indices.size());
+    expanded_normals.reserve(indices.size());
+    
+    for (uint32_t index : indices) {
+        expanded_positions.push_back(glm::vec4(positions[index], 1.0f));
+        expanded_normals.push_back(glm::vec4(normals[index], 0.0f));
+    }
+    
+    m_sphere_index_count = static_cast<uint32_t>(expanded_positions.size());
+    
+    // Create GPU buffers for sphere mesh (using expanded vertices)
+    m_sphere_vertices = std::make_unique<webgpu::raii::RawBuffer<glm::fvec4>>(
+        m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, 
+        expanded_positions.size(), "particle sphere vertices");
+    m_sphere_vertices->write(m_queue, expanded_positions.data(), expanded_positions.size());
+    
+    m_sphere_normals = std::make_unique<webgpu::raii::RawBuffer<glm::fvec4>>(
+        m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, 
+        expanded_normals.size(), "particle sphere normals");
+    m_sphere_normals->write(m_queue, expanded_normals.data(), expanded_normals.size());
 }
 
 }

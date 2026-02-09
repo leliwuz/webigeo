@@ -7,60 +7,47 @@
 @group(2) @binding(0) var depth_texture: texture_2d<f32>;
 @group(3) @binding(0) var<storage> positions: array<vec4f>;
 @group(3) @binding(1) var<uniform> particle_config: ParticleConfig;
-@group(3) @binding(2) var particle_texture: texture_2d<f32>;
-@group(3) @binding(3) var particle_sampler: sampler;
+@group(3) @binding(2) var<storage> sphere_vertices: array<vec4f>;
+@group(3) @binding(3) var<storage> sphere_normals: array<vec4f>;
 
 
 struct ParticleConfig {
     color: vec4f,
-    size: f32,
+    _pad4: f32,
     _pad0: f32,
     _pad2: f32,
     _pad3: f32,
 }
 
-const quad_vertices = array<vec2f, 4>(
-    vec2f(-0.5, -0.5),
-    vec2f(0.5, -0.5),
-    vec2f(-0.5, 0.5),
-    vec2f(0.5, 0.5),
-);
-
-const quad_uvs = array<vec2f, 4>(
-    vec2f(0.0, 1.0),
-    vec2f(1.0, 1.0),
-    vec2f(0.0, 0.0),
-    vec2f(1.0, 0.0),
-);
-
 struct VertexOut {
     @builtin(position) position: vec4f,
-    @location(0) uv: vec2f,
+    @location(0) normal: vec3f,
+    @location(1) world_pos: vec3f,
 }
 
 @vertex
 fn vertexMain(@builtin(vertex_index) vertex_index: u32, @builtin(instance_index) instance_index: u32) -> VertexOut {
-    // Extract camera right and up vectors from view matrix to face the camera
-    let right = normalize(vec3f(camera.view_matrix[0].xyz));
-    let up = normalize(vec3f(camera.view_matrix[1].xyz));
+    // Get sphere vertex and normal
+    let sphere_vertex = sphere_vertices[vertex_index].xyz;
+    let sphere_normal = sphere_normals[vertex_index].xyz;
     
-    let half_size = particle_config.size * 0.5;
-    let offset = (quad_vertices[vertex_index].x * right + quad_vertices[vertex_index].y * up) * half_size;
+    // add particle position
+    let particle_pos = positions[instance_index];
+    let world_position = particle_pos.xyz + sphere_vertex;
     
     var vertex_out: VertexOut;
-
-    let pos = positions[instance_index];
-    let world_position = pos.xyz + offset;
     vertex_out.position = camera.view_proj_matrix * vec4f(world_position - camera.position.xyz, 1);
-    vertex_out.uv = quad_uvs[vertex_index];
+    vertex_out.normal = sphere_normal;
+    vertex_out.world_pos = world_position;
     return vertex_out;
 }
 
 @fragment
 fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
-    let texel = textureSample(particle_texture, particle_sampler, in.uv);
-    if (texel.a < 0.1) {
-        discard;
-    }
-    return vec4f(texel.rgb * particle_config.color.rgb, texel.a * particle_config.color.a);
+    // Simple lighting: use normal direction for shading
+    let light_dir = normalize(vec3f(1.0, 1.0, 1.0));
+    let normal = normalize(in.normal);
+    let diffuse = max(dot(normal, light_dir), 0.2);
+    
+    return vec4f(particle_config.color.rgb * diffuse, particle_config.color.a);
 }

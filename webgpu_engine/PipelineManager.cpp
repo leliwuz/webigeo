@@ -353,11 +353,11 @@ void PipelineManager::create_render_particles_pipeline()
     pipeline_desc.vertex.constantCount = 0;
     pipeline_desc.vertex.constants = nullptr;
     
-    // Triangle strip topology for billboard quads (4 vertices per instance)
-    pipeline_desc.primitive.topology = WGPUPrimitiveTopology::WGPUPrimitiveTopology_TriangleStrip;
+    // Triangle list topology for sphere mesh
+    pipeline_desc.primitive.topology = WGPUPrimitiveTopology::WGPUPrimitiveTopology_TriangleList;
     pipeline_desc.primitive.stripIndexFormat = WGPUIndexFormat::WGPUIndexFormat_Undefined;
     pipeline_desc.primitive.frontFace = WGPUFrontFace::WGPUFrontFace_CCW;
-    pipeline_desc.primitive.cullMode = WGPUCullMode::WGPUCullMode_None; // No culling for billboards
+    pipeline_desc.primitive.cullMode = WGPUCullMode::WGPUCullMode_Back; // Enable back-face culling for spheres
     
     pipeline_desc.fragment = &fragment_state;
     pipeline_desc.depthStencil = nullptr; // No depth write for transparent particles
@@ -783,26 +783,27 @@ void PipelineManager::create_particles_bind_group_layout()
     config_entry.buffer.type = WGPUBufferBindingType_Uniform;
     config_entry.buffer.minBindingSize = 0;
 
-    // Binding 2: Particle texture (sampled texture 2D)
-    WGPUBindGroupLayoutEntry texture_entry {};
-    texture_entry.binding = 2;
-    texture_entry.visibility = WGPUShaderStage_Fragment;
-    texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
-    texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+    // Binding 2: Storage buffer for sphere vertices (vec3f array)
+    WGPUBindGroupLayoutEntry vertices_entry {};
+    vertices_entry.binding = 2;
+    vertices_entry.visibility = WGPUShaderStage_Vertex;
+    vertices_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    vertices_entry.buffer.minBindingSize = 0;
 
-    // Binding 3: Texture sampler (filtering)
-    WGPUBindGroupLayoutEntry sampler_entry {};
-    sampler_entry.binding = 3;
-    sampler_entry.visibility = WGPUShaderStage_Fragment;
-    sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+    // Binding 3: Storage buffer for sphere normals (vec3f array)
+    WGPUBindGroupLayoutEntry normals_entry {};
+    normals_entry.binding = 3;
+    normals_entry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+    normals_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    normals_entry.buffer.minBindingSize = 0;
 
     m_particles_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
         m_device, 
         std::vector<WGPUBindGroupLayoutEntry> { 
             positions_entry, 
             config_entry, 
-            texture_entry, 
-            sampler_entry 
+            vertices_entry, 
+            normals_entry 
         }, 
         "particle renderer, bind group layout");
 }
