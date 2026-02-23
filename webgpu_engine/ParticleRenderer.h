@@ -24,10 +24,11 @@ public:
     };
 
     struct ParticleState {
-        Coordinates position;      // CPU position (in lat/long/alt)
+        Coordinates position;      // CPU position (lat/long/alt or world-space)
         glm::vec3 velocity;      // For physics simulation
         glm::vec4 color;
         float pad0;
+        bool is_world_space = false;
     };
 
 public:
@@ -36,6 +37,10 @@ public:
     // Spawn a new particle at the given position
     size_t spawn_particle(const Coordinates& coordinate, const glm::vec4& color = {1.f,1.0,1.0,1.f}, 
                           const glm::dvec3& velocity = {0.0, 0.0, 0.0});
+
+    // Spawn a new particle using world-space coordinates directly
+    size_t spawn_particle_world(const glm::dvec3& world_position, const glm::vec4& color = {1.f,1.0,1.0,1.f},
+                                const glm::dvec3& velocity = {0.0, 0.0, 0.0});
     
     // Update a specific particle's position
     void update_particle_position(size_t particle_id, const Coordinates& new_position);

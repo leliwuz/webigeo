@@ -1141,18 +1141,8 @@ void PipelineManager::create_avalanche_animation_compute_bind_group_layout()
     input_release_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
     input_release_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-    WGPUBindGroupLayoutEntry input_normal_sampler_entry {};
-    input_normal_sampler_entry.binding = 4;
-    input_normal_sampler_entry.visibility = WGPUShaderStage_Compute;
-    input_normal_sampler_entry.sampler.type = WGPUSamplerBindingType_NonFiltering;
-
-    WGPUBindGroupLayoutEntry input_height_sampler_entry {};
-    input_height_sampler_entry.binding = 5;
-    input_height_sampler_entry.visibility = WGPUShaderStage_Compute;
-    input_height_sampler_entry.sampler.type = WGPUSamplerBindingType_NonFiltering;
-
     WGPUBindGroupLayoutEntry output_storage_buffer_entry {};
-    output_storage_buffer_entry.binding = 6;
+    output_storage_buffer_entry.binding = 4;
     output_storage_buffer_entry.visibility = WGPUShaderStage_Compute;
     output_storage_buffer_entry.buffer.type = WGPUBufferBindingType_Storage;
     output_storage_buffer_entry.buffer.minBindingSize = 0;
@@ -1163,8 +1153,6 @@ void PipelineManager::create_avalanche_animation_compute_bind_group_layout()
             input_normal_texture_entry,
             input_height_texture_entry,
             input_release_texture_entry,
-            input_normal_sampler_entry,
-            input_height_sampler_entry,
             output_storage_buffer_entry,
         },
         "avalanche animation compute bind group layout");

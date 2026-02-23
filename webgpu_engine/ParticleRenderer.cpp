@@ -29,6 +29,7 @@ size_t ParticleRenderer::spawn_particle(const Coordinates& coordinate, const glm
     state.position = coordinate;
     state.velocity = velocity;
     state.color = color;
+    state.is_world_space = false;
     m_particle_states.push_back(state);
     
     // Convert coordinate to world position
@@ -60,6 +61,41 @@ size_t ParticleRenderer::spawn_particle(const Coordinates& coordinate, const glm
     return m_particle_states.size() - 1;  // Return particle ID
 }
 
+size_t ParticleRenderer::spawn_particle_world(const glm::dvec3& world_position, const glm::vec4& color,
+                                              const glm::dvec3& velocity)
+{
+    ParticleState state;
+    state.position = world_position;
+    state.velocity = velocity;
+    state.color = color;
+    state.is_world_space = true;
+    m_particle_states.push_back(state);
+
+    glm::fvec4 gpu_position(world_position, 1.0f);
+
+    m_position_buffers.emplace_back(std::make_unique<webgpu::raii::RawBuffer<glm::fvec4>>(
+        m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, 1, "particle renderer, position buffer"));
+    m_position_buffers.back()->write(m_queue, &gpu_position, 1);
+
+    auto config_buffer = std::make_unique<webgpu_engine::Buffer<ParticleConfig>>(
+        m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
+    config_buffer->data.color = color;
+    config_buffer->update_gpu_data(m_queue);
+
+    m_particle_config_buffers.emplace_back(std::move(config_buffer));
+
+    m_bind_groups.emplace_back(std::make_unique<webgpu::raii::BindGroup>(
+        m_device, m_pipeline_manager->particles_bind_group_layout(),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_position_buffers.back()->create_bind_group_entry(0),
+            m_particle_config_buffers.back()->raw_buffer().create_bind_group_entry(1),
+            m_sphere_vertices->create_bind_group_entry(2),
+            m_sphere_normals->create_bind_group_entry(3)
+        }));
+
+    return m_particle_states.size() - 1;
+}
+
 void ParticleRenderer::update_particle_position(size_t particle_id, const Coordinates& new_position)
 {
     if (particle_id >= m_particle_states.size()) return;
@@ -68,8 +104,13 @@ void ParticleRenderer::update_particle_position(size_t particle_id, const Coordi
     m_particle_states[particle_id].position = new_position;
     
     // Update GPU buffer
-    glm::fvec4 world_position(nucleus::srs::lat_long_alt_to_world(new_position), 1.0f);
-    m_position_buffers[particle_id]->write(m_queue, &world_position, 1);
+    if (m_particle_states[particle_id].is_world_space) {
+        glm::fvec4 world_position(new_position, 1.0f);
+        m_position_buffers[particle_id]->write(m_queue, &world_position, 1);
+    } else {
+        glm::fvec4 world_position(nucleus::srs::lat_long_alt_to_world(new_position), 1.0f);
+        m_position_buffers[particle_id]->write(m_queue, &world_position, 1);
+    }
 }
 
 void ParticleRenderer::update_particles(float delta_time)
@@ -81,8 +122,13 @@ void ParticleRenderer::update_particles(float delta_time)
         state.position += state.velocity * delta_time;
         
         // Update GPU buffer
-        glm::fvec4 world_position(nucleus::srs::lat_long_alt_to_world(state.position), 1.0f);
-        m_position_buffers[i]->write(m_queue, &world_position, 1);
+        if (state.is_world_space) {
+            glm::fvec4 world_position(state.position, 1.0f);
+            m_position_buffers[i]->write(m_queue, &world_position, 1);
+        } else {
+            glm::fvec4 world_position(nucleus::srs::lat_long_alt_to_world(state.position), 1.0f);
+            m_position_buffers[i]->write(m_queue, &world_position, 1);
+        }
     }
 }
 

@@ -24,6 +24,7 @@
 #include "../GpuTileStorage.h"
 #include "radix/tile.h"
 #include <QByteArray>
+#include <glm/vec4.hpp>
 #include <QObject>
 #include <variant>
 #include <vector>
@@ -40,6 +41,7 @@ using Data = std::variant<const std::vector<radix::tile::Id>*,
     TileStorageTexture*,
     GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*,
     webgpu::raii::RawBuffer<uint32_t>*,
+    webgpu::raii::RawBuffer<glm::vec4>*,
     const webgpu::raii::TextureWithSampler*,
     const radix::geometry::Aabb<2, double>*,
     glm::uvec2>;

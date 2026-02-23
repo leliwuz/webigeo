@@ -20,7 +20,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
                   InputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>()),
               },
               {
-                  OutputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_output_storage_buffer.get(); })
+                  OutputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<glm::vec4>*>(), [this]() { return m_output_storage_buffer.get(); })
               })
         , m_pipeline_manager { &pipeline_manager }
         , m_device { device }
@@ -86,7 +86,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
 
         m_output_storage_buffer
-        = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
+        = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
             m_output_dimensions.x * m_output_dimensions.y, "avalanche avalanche compute output storage");
 
         // create layer buffers
@@ -94,18 +94,17 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
         // update input settings on GPU side
         m_settings_uniform.data.output_resolution = m_output_dimensions;
+        m_settings_uniform.data.region_min = glm::fvec2(region_aabb->min);
         m_settings_uniform.data.region_size = glm::fvec2(region_aabb->size());
         update_gpu_settings();
 
         // create bind group
-         std::vector<WGPUBindGroupEntry> entries {
-        m_settings_uniform.raw_buffer().create_bind_group_entry(0),
-        normal_texture.texture_view().create_bind_group_entry(1),
-        height_texture.texture_view().create_bind_group_entry(2),
-        release_point_texture.texture_view().create_bind_group_entry(3),
-        m_normal_sampler->create_bind_group_entry(4),
-        m_height_sampler->create_bind_group_entry(5),
-        m_output_storage_buffer->create_bind_group_entry(6),
+        std::vector<WGPUBindGroupEntry> entries {
+            m_settings_uniform.raw_buffer().create_bind_group_entry(0),
+            normal_texture.texture_view().create_bind_group_entry(1),
+            height_texture.texture_view().create_bind_group_entry(2),
+            release_point_texture.texture_view().create_bind_group_entry(3),
+            m_output_storage_buffer->create_bind_group_entry(4),
         };
 
         webgpu::raii::BindGroup compute_bind_group(

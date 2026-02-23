@@ -32,6 +32,7 @@
 #include "nucleus/tile/drawing.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
+#include "nucleus/srs.h"
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
 #include <QFile>
@@ -1885,6 +1886,48 @@ void Window::on_pipeline_run_completed()
         radix::geometry::Aabb<2, double> selected_aabb = *std::get<const radix::geometry::Aabb<2, double>*>(select_tiles_node.output_socket("region aabb").get_data());
         selected_aabb.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65); // stitch node ignores last col/row
         update_compute_overlay_aabb(selected_aabb);
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION) {
+        auto& anim_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheAnimationNode>("compute_avalanche_animation_node");
+        auto* buffer = std::get<webgpu::raii::RawBuffer<glm::vec4>*>(anim_node.output_socket("storage buffer").get_data());
+
+        std::vector<glm::vec4> positions;
+        WGPUMapAsyncStatus status = buffer->read_back_sync(m_context->webgpu_instance(), m_device, positions);
+        if (status == WGPUMapAsyncStatus_Success) {
+            const size_t count = positions.size();
+            for (size_t i = 0; i < count; ++i) {
+                const auto& pos = positions[i];
+                const glm::dvec3 world_pos(pos.x, pos.y, pos.z);
+                m_particle_renderer->spawn_particle_world(world_pos, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+                m_needs_redraw = true;
+                qDebug() << "avalanche position[" << i << "]=" << pos.x << pos.y << pos.z << pos.w;
+            }
+
+            size_t found = 0;
+            const size_t max_checks = positions.size();
+            for (size_t i = 0; i < max_checks && found < 10; ++i) {
+                const auto& pos = positions[i];
+                const glm::dvec3 world_pos(pos.x, pos.y, pos.z);
+                const glm::dvec3 camera_relative = world_pos - glm::dvec3(m_camera.position());
+                const glm::vec4 clip = m_camera_config_ubo->data.view_proj_matrix * glm::vec4(camera_relative, 1.0f);
+                if (clip.w == 0.0f) {
+                    continue;
+                }
+                const glm::dvec2 ndc(clip.x / clip.w, clip.y / clip.w);
+                if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0) {
+                    continue;
+                }
+                const glm::vec4 gbuf_pos = synchronous_position_readback(ndc);
+                const glm::dvec3 gbuf_world = glm::dvec3(m_camera.position()) + glm::dvec3(gbuf_pos.x, gbuf_pos.y, gbuf_pos.z);
+                qDebug() << "height compare[" << i << "] compute_z=" << world_pos.z << "gbuf_z=" << gbuf_world.z
+                         << "dz=" << (world_pos.z - gbuf_world.z) << "raw_height=" << pos.w;
+                ++found;
+            }
+            if (found == 0) {
+                qDebug() << "height compare: no visible positions found";
+            }
+        } else {
+            qWarning() << "avalanche animation position readback failed:" << status;
+        }
     }
 
     // QUICK HACK: write pipeline settings to files

@@ -27,11 +27,13 @@ public:
 private:
     struct AvalancheAnimationSettingsUniform {
         glm::uvec2 output_resolution;
+        glm::fvec2 region_min;
         glm::fvec2 region_size;
         float min_slope_angle;
         float max_slope_angle;
         glm::uvec2 sampling_interval;
         uint32_t num_particles_per_cell;
+        uint32_t padding_0;
     };
 
 public:
@@ -59,7 +61,7 @@ private:
     std::unique_ptr<webgpu::raii::Sampler> m_normal_sampler;
     std::unique_ptr<webgpu::raii::Sampler> m_height_sampler;
     
-    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_output_storage_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_output_storage_buffer;
 
     glm::uvec2 m_output_dimensions;
     //TODO: other Buffers / outputs for avalanche animation node when implemented (e.g. slope angle texture, etc.)

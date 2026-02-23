@@ -49,7 +49,7 @@ RenderingContext::RenderingContext()
     //                                           {"", "1", "2", "3", "4"}));
     m_aabb_decorator = nucleus::tile::setup::aabb_decorator();
     {
-        auto geometry_service = std::make_unique<nucleus::tile::TileLoadService>("https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/", TilePattern::ZXY, ".png");
+        auto geometry_service = std::make_unique<nucleus::tile::TileLoadService>("https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/", TilePattern::ZXY, ".png");
         m_geometry_scheduler_holder = nucleus::tile::setup::geometry_scheduler(std::move(geometry_service), m_aabb_decorator, m_scheduler_thread.get());
         m_geometry_scheduler_holder.scheduler->set_gpu_quad_limit(256); // TODO
         m_scheduler_director->check_in("geometry", m_geometry_scheduler_holder.scheduler);
