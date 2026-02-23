@@ -70,6 +70,7 @@ template class Buffer<TrackRenderer::LineConfig>;
 template class Buffer<ImageOverlaySettings>;
 template class Buffer<ParticleRenderer::ParticleConfig>;
 template class Buffer<compute::nodes::ComputeAvalancheAnimationNode::AvalancheAnimationSettingsUniform>;
+template class Buffer<compute::nodes::ComputeAvalancheAnimationNode::AvalancheParticleStepSettingsUniform>;
 // TODO
 // template class UniformBuffer<uboShadowConfig>;
 

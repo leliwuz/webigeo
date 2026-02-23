@@ -37,12 +37,22 @@ private:
         uint32_t padding_0;
     };
 
+    struct AvalancheParticleStepSettingsUniform {
+        glm::fvec2 region_min;
+        glm::fvec2 region_size;
+        glm::uvec2 output_resolution;
+        float dt;
+        float gravity;
+    };
+
 public:
     ComputeAvalancheAnimationNode(const PipelineManager& pipeline_manager, WGPUDevice device);
     ComputeAvalancheAnimationNode(const PipelineManager& pipeline_manager, WGPUDevice device, const AvalancheAnimationSettings& settings);
 
     void set_settings(const AvalancheAnimationSettings& settings);
     const AvalancheAnimationSettings& get_settings() const;
+
+    void step_particles(float dt_seconds);
 
     public slots:
     void run_impl() override;
@@ -59,11 +69,16 @@ private:
 
     AvalancheAnimationSettings m_settings;
     webgpu_engine::Buffer<AvalancheAnimationSettingsUniform> m_settings_uniform;
+    webgpu_engine::Buffer<AvalancheParticleStepSettingsUniform> m_step_settings_uniform;
     std::unique_ptr<webgpu::raii::Sampler> m_normal_sampler;
     std::unique_ptr<webgpu::raii::Sampler> m_height_sampler;
     
     std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_output_storage_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_output_count_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_velocity_storage_buffer;
+
+    const webgpu::raii::TextureWithSampler* m_cached_normal_texture = nullptr;
+    const webgpu::raii::TextureWithSampler* m_cached_height_texture = nullptr;
 
     glm::uvec2 m_output_dimensions;
     //TODO: other Buffers / outputs for avalanche animation node when implemented (e.g. slope angle texture, etc.)

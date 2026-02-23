@@ -51,6 +51,7 @@ public:
     const webgpu::raii::ShaderModule& upsample_textures_compute() const;
     const webgpu::raii::ShaderModule& avalanche_trajectories_compute() const;
     const webgpu::raii::ShaderModule& avalanche_animation_compute() const;
+    const webgpu::raii::ShaderModule& avalanche_particle_step_compute() const;
     const webgpu::raii::ShaderModule& buffer_to_texture_compute() const;
     const webgpu::raii::ShaderModule& avalanche_influence_area_compute() const;
     const webgpu::raii::ShaderModule& d8_compute() const;
@@ -85,6 +86,7 @@ private:
     std::unique_ptr<webgpu::raii::ShaderModule> m_upsample_textures_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_trajectories_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_animation_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_particle_step_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_buffer_to_texture_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_influence_area_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_d8_compute_module;

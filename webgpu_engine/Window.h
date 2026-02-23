@@ -146,6 +146,8 @@ private:
 
     void display_message(const std::string& message);
 
+    void update_avalanche_particles_from_gpu(float dt_seconds);
+
 private:
     WGPUInstance m_instance = nullptr;
     WGPUDevice m_device = nullptr;
@@ -180,6 +182,7 @@ private:
     bool m_animation_running = true;
     std::atomic_bool m_particle_clear_requested { false };
     std::atomic_bool m_particle_clear_ready { false };
+    bool m_avalanche_particles_initialized = false;
 
     std::unique_ptr<TrackRenderer> m_track_renderer;
 

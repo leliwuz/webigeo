@@ -40,6 +40,7 @@ const webgpu::raii::RenderPipeline& PipelineManager::render_lines_pipeline() con
 const webgpu::raii::RenderPipeline& PipelineManager::render_particles_pipeline() const { return *m_render_particles_pipeline; }
 
 const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_animation_compute_pipeline() const { return *m_avalanche_animation_compute_pipeline; }
+const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_particle_step_compute_pipeline() const { return *m_avalanche_particle_step_compute_pipeline; }
 
 const webgpu::raii::GenericRenderPipeline& PipelineManager::compose_pipeline() const { return *m_compose_pipeline; }
 
@@ -96,6 +97,7 @@ const webgpu::raii::BindGroupLayout& PipelineManager::upsample_textures_compute_
 }
 
 const webgpu::raii::BindGroupLayout& PipelineManager::avalanche_animation_compute_bind_group_layout() const { return *m_avalanche_animation_compute_bind_group_layout; }
+const webgpu::raii::BindGroupLayout& PipelineManager::avalanche_particle_step_bind_group_layout() const { return *m_avalanche_particle_step_compute_bind_group_layout; }
 
 const webgpu::raii::BindGroupLayout& PipelineManager::lines_bind_group_layout() const { return *m_lines_bind_group_layout; }
 
@@ -147,6 +149,7 @@ void PipelineManager::create_pipelines()
     create_upsample_textures_compute_pipeline();
     create_avalanche_trajectories_compute_pipeline();
     create_avalanche_animation_compute_pipeline();
+    create_avalanche_particle_step_compute_pipeline();
     create_buffer_to_texture_compute_pipeline();
     create_avalanche_influence_area_compute_pipeline();
     create_d8_compute_pipeline();
@@ -174,6 +177,7 @@ void PipelineManager::create_bind_group_layouts()
     create_depth_texture_bind_group_layout();
     create_avalanche_trajectory_bind_group_layout();
     create_avalanche_animation_compute_bind_group_layout();
+    create_avalanche_particle_step_compute_bind_group_layout();
     create_buffer_to_texture_bind_group_layout();
     create_avalanche_influence_area_bind_group_layout();
     create_d8_compute_bind_group_layout();
@@ -198,6 +202,7 @@ void PipelineManager::release_pipelines()
     m_upsample_textures_compute_pipeline.release();
     m_avalanche_trajectories_compute_pipeline.release();
     m_avalanche_animation_compute_pipeline.release();
+    m_avalanche_particle_step_compute_pipeline.release();
     m_avalanche_trajectories_buffer_to_texture_compute_pipeline.release();
     m_avalanche_influence_area_compute_pipeline.release();
     m_d8_compute_pipeline.release();
@@ -428,6 +433,13 @@ void PipelineManager::create_avalanche_animation_compute_pipeline()
     m_avalanche_animation_compute_pipeline
         = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->avalanche_animation_compute(),
             std::vector<const webgpu::raii::BindGroupLayout*> { m_avalanche_animation_compute_bind_group_layout.get() });
+}
+
+void PipelineManager::create_avalanche_particle_step_compute_pipeline()
+{
+    m_avalanche_particle_step_compute_pipeline
+        = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->avalanche_particle_step_compute(),
+            std::vector<const webgpu::raii::BindGroupLayout*> { m_avalanche_particle_step_compute_bind_group_layout.get() });
 }
 
 void PipelineManager::create_buffer_to_texture_compute_pipeline()
@@ -1163,6 +1175,56 @@ void PipelineManager::create_avalanche_animation_compute_bind_group_layout()
             output_count_buffer_entry,
         },
         "avalanche animation compute bind group layout");
+}
+
+void PipelineManager::create_avalanche_particle_step_compute_bind_group_layout()
+{
+    WGPUBindGroupLayoutEntry input_settings_entry {};
+    input_settings_entry.binding = 0;
+    input_settings_entry.visibility = WGPUShaderStage_Compute;
+    input_settings_entry.buffer.type = WGPUBufferBindingType_Uniform;
+    input_settings_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry input_normal_texture_entry {};
+    input_normal_texture_entry.binding = 1;
+    input_normal_texture_entry.visibility = WGPUShaderStage_Compute;
+    input_normal_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    input_normal_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+    WGPUBindGroupLayoutEntry input_height_texture_entry {};
+    input_height_texture_entry.binding = 2;
+    input_height_texture_entry.visibility = WGPUShaderStage_Compute;
+    input_height_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+    input_height_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+    WGPUBindGroupLayoutEntry input_positions_entry {};
+    input_positions_entry.binding = 3;
+    input_positions_entry.visibility = WGPUShaderStage_Compute;
+    input_positions_entry.buffer.type = WGPUBufferBindingType_Storage;
+    input_positions_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry input_velocities_entry {};
+    input_velocities_entry.binding = 4;
+    input_velocities_entry.visibility = WGPUShaderStage_Compute;
+    input_velocities_entry.buffer.type = WGPUBufferBindingType_Storage;
+    input_velocities_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry input_count_entry {};
+    input_count_entry.binding = 5;
+    input_count_entry.visibility = WGPUShaderStage_Compute;
+    input_count_entry.buffer.type = WGPUBufferBindingType_Storage;
+    input_count_entry.buffer.minBindingSize = 0;
+
+    m_avalanche_particle_step_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
+        std::vector<WGPUBindGroupLayoutEntry> {
+            input_settings_entry,
+            input_normal_texture_entry,
+            input_height_texture_entry,
+            input_positions_entry,
+            input_velocities_entry,
+            input_count_entry,
+        },
+        "avalanche particle step compute bind group layout");
 }
 
 void PipelineManager::create_height_decode_compute_bind_group_layout()
