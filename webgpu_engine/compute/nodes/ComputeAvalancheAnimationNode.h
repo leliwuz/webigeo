@@ -19,10 +19,10 @@ public:
         WGPUTextureFormat texture_format = WGPUTextureFormat_RGBA8Unorm;
         WGPUTextureUsage texture_usage
             = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc);
-        float min_slope_angle = glm::radians(30.0f); // min slope angle [rad]
+        float min_slope_angle = glm::radians(40.0f); // min slope angle [rad]
         float max_slope_angle = glm::radians(45.0f); // max slope angle [rad]
         glm::uvec2 sampling_interval = glm::uvec2(1, 1); // sampling interval in x and y direction [every sampling_interval texels]
-        int num_particles_per_cell = 10; // number of particles to release per release cell
+        int num_particles_per_cell = 2; // number of particles to release per release cell
     };
 private:
     struct AvalancheAnimationSettingsUniform {
@@ -62,6 +62,7 @@ private:
     std::unique_ptr<webgpu::raii::Sampler> m_height_sampler;
     
     std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_output_storage_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_output_count_buffer;
 
     glm::uvec2 m_output_dimensions;
     //TODO: other Buffers / outputs for avalanche animation node when implemented (e.g. slope angle texture, etc.)

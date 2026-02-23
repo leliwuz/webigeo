@@ -20,7 +20,8 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
                   InputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>()),
               },
               {
-                  OutputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<glm::vec4>*>(), [this]() { return m_output_storage_buffer.get(); })
+                  OutputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<glm::vec4>*>(), [this]() { return m_output_storage_buffer.get(); }),
+                  OutputSocket(*this, "valid count buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_output_count_buffer.get(); })
               })
         , m_pipeline_manager { &pipeline_manager }
         , m_device { device }
@@ -87,7 +88,14 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
         m_output_storage_buffer
         = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
-            m_output_dimensions.x * m_output_dimensions.y, "avalanche avalanche compute output storage");
+            m_output_dimensions.x * m_output_dimensions.y * m_settings.num_particles_per_cell,
+            "avalanche avalanche compute output storage");
+        m_output_count_buffer
+            = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
+                1, "avalanche animation output count");
+
+        const uint32_t zero = 0u;
+        m_output_count_buffer->write(m_queue, &zero, 1);
 
         // create layer buffers
         //TODO
@@ -105,6 +113,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
             height_texture.texture_view().create_bind_group_entry(2),
             release_point_texture.texture_view().create_bind_group_entry(3),
             m_output_storage_buffer->create_bind_group_entry(4),
+            m_output_count_buffer->create_bind_group_entry(5),
         };
 
         webgpu::raii::BindGroup compute_bind_group(

@@ -37,6 +37,7 @@
 #include "nucleus/utils/ColourTexture.h"
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/webgpu.h>
+#include <atomic>
 
 class QOpenGLFramebufferObject;
 
@@ -115,6 +116,7 @@ private:
     void create_buffers();
     void create_bind_groups();
     void recreate_compose_bind_group();
+    void clear_avalanche_particles();
 
     // A helper function for the depth and position method.
     // ATTENTION: This function is synchronous and will hold rendering. Use with caution!
@@ -176,6 +178,8 @@ private:
     bool m_first_paint = true;
     bool m_is_first_pipeline_run = true;
     bool m_animation_running = true;
+    std::atomic_bool m_particle_clear_requested { false };
+    std::atomic_bool m_particle_clear_ready { false };
 
     std::unique_ptr<TrackRenderer> m_track_renderer;
 
