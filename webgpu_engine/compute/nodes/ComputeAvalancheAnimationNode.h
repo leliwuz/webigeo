@@ -16,6 +16,7 @@ public:
     
     struct AvalancheAnimationSettings {
         uint32_t resolution_multiplier = 1;
+        uint32_t zoom_level = 18;
         WGPUTextureFormat texture_format = WGPUTextureFormat_RGBA8Unorm;
         WGPUTextureUsage texture_usage
             = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc);

@@ -1471,6 +1471,7 @@ void Window::update_compute_pipeline_settings()
         m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(release_settings);
 
         compute::nodes::ComputeAvalancheAnimationNode::AvalancheAnimationSettings animation_settings;
+        animation_settings.zoom_level = m_compute_pipeline_settings.zoomlevel;
         animation_settings.min_slope_angle = release_settings.min_slope_angle;
         animation_settings.max_slope_angle = release_settings.max_slope_angle;
         animation_settings.sampling_interval = release_settings.sampling_interval;

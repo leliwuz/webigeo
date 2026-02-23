@@ -1,6 +1,7 @@
 #include "ComputeAvalancheAnimationNode.h"
 
 #include <QDebug>
+#include <nucleus/srs.h>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -102,8 +103,13 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
         // update input settings on GPU side
         m_settings_uniform.data.output_resolution = m_output_dimensions;
-        m_settings_uniform.data.region_min = glm::fvec2(region_aabb->min);
-        m_settings_uniform.data.region_size = glm::fvec2(region_aabb->size());
+        glm::dvec2 region_min = region_aabb->min;
+        glm::dvec2 region_max = region_aabb->max
+            - glm::dvec2(nucleus::srs::tile_width(int(m_settings.zoom_level)) / 10.0,
+                nucleus::srs::tile_height(int(m_settings.zoom_level)) / 10.0);
+        region_max = glm::max(region_max, region_min);
+        m_settings_uniform.data.region_min = glm::fvec2(region_min);
+        m_settings_uniform.data.region_size = glm::fvec2(region_max - region_min);
         update_gpu_settings();
 
         // create bind group
