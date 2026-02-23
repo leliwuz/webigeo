@@ -52,6 +52,7 @@ set(SOURCES
     compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
     compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
     compute/nodes/ComputeAvalancheInfluenceAreaNode.h compute/nodes/ComputeAvalancheInfluenceAreaNode.cpp
+    compute/nodes/ComputeAvalancheAnimationNode.h compute/nodes/ComputeAvalancheAnimationNode.cpp
     compute/nodes/ComputeD8DirectionsNode.h compute/nodes/ComputeD8DirectionsNode.cpp
     compute/nodes/TileExportNode.h compute/nodes/TileExportNode.cpp
     compute/nodes/BufferExportNode.h compute/nodes/BufferExportNode.cpp
@@ -122,6 +123,7 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/compute/snow_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/upsample_textures_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/avalanche_trajectories_compute.wgsl"
+        "${SHADER_BASE_DIR}/compute/avalanche_animation_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/buffer_to_texture_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/avalanche_influence_area_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/d8_compute.wgsl"

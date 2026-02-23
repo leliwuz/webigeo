@@ -24,6 +24,7 @@
 #include "BufferToTextureNode.h"
 #include "ComputeAvalancheInfluenceAreaNode.h"
 #include "ComputeAvalancheTrajectoriesNode.h"
+#include "ComputeAvalancheAnimationNode.h"
 #include "ComputeD8DirectionsNode.h"
 #include "ComputeNormalsNode.h"
 #include "ComputeReleasePointsNode.h"
@@ -228,6 +229,27 @@ static std::unique_ptr<NodeGraph> create_release_points_compute_graph_unconnecte
     return node_graph;
 }
 
+static std::unique_ptr<NodeGraph> create_avalanche_animation_compute_graph_unconnected(const PipelineManager& manager, WGPUDevice device)
+{
+    auto node_graph = create_release_points_compute_graph_unconnected(manager, device);
+
+    // add and connect release points node
+    Node* avalanche_animation_node = node_graph->add_node("compute_avalanche_animation_node", std::make_unique<ComputeAvalancheAnimationNode>(manager, device));
+    avalanche_animation_node->input_socket("region aabb")
+        .connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
+
+    avalanche_animation_node->input_socket("normal texture")
+        .connect(node_graph->get_node("compute_normals_node").output_socket("normal texture"));
+
+    avalanche_animation_node->input_socket("height texture")
+        .connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
+
+    avalanche_animation_node->input_socket("release point texture")
+        .connect(node_graph->get_node("compute_release_points_node").output_socket("release point texture"));
+
+    return node_graph;
+}
+
 static std::unique_ptr<NodeGraph> create_trajectories_compute_graph_unconnected(const PipelineManager& manager, WGPUDevice device)
 {
     auto node_graph = create_release_points_compute_graph_unconnected(manager, device);
@@ -270,6 +292,14 @@ std::unique_ptr<NodeGraph> NodeGraph::create_release_points_compute_graph(const 
 {
     auto node_graph = create_release_points_compute_graph_unconnected(manager, device);
     node_graph->set_name("release_points_compute_graph");
+    node_graph->connect_node_signals_and_slots();
+    return node_graph;
+}
+
+std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_animation_compute_graph(const PipelineManager& manager, WGPUDevice device)
+{
+    auto node_graph = create_avalanche_animation_compute_graph_unconnected(manager, device);
+    node_graph->set_name("avalanche_animation_compute_graph");
     node_graph->connect_node_signals_and_slots();
     return node_graph;
 }

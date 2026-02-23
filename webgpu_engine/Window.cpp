@@ -23,6 +23,7 @@
 #include "compute/nodes/BufferToTextureNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
+#include "compute/nodes/ComputeAvalancheAnimationNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/LoadRegionAabbNode.h"
 #include "compute/nodes/LoadTextureNode.h"
@@ -623,6 +624,7 @@ void Window::paint_compute_pipeline_gui()
             //{ "D8 directions", ComputePipelineType::D8_DIRECTIONS },
             { "Release points", ComputePipelineType::RELEASE_POINTS },
             { "Iterative simulation (WIP)", ComputePipelineType::ITERATIVE_SIMULATION },
+            { "Avalanche animation", ComputePipelineType::AVALANCHE_ANIMATION },
         };
         const char* current_item_label = overlays[overlays_current_item].first.c_str();
         if (ImGui::BeginCombo("Type", current_item_label)) {
@@ -1057,7 +1059,30 @@ void Window::paint_compute_pipeline_gui()
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
-            }
+            } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION){
+                ImGui::SliderInt("Release point interval", &m_compute_pipeline_settings.release_point_interval, 1, 64, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
+                ImGui::DragFloatRange2("Release point steepness",
+                    &m_compute_pipeline_settings.trigger_point_min_slope_angle,
+                    &m_compute_pipeline_settings.trigger_point_max_slope_angle,
+                    0.1f,
+                    0.0f,
+                    90.0f,
+                    "Min: %.1f°",
+                    "Max: %.1f°",
+                    ImGuiSliderFlags_AlwaysClamp);
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
+                ImGui::SliderInt("Num Particles per Cell", &m_compute_pipeline_settings.num_particles_per_cell, 1u, 20000u, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+            } 
             ImGui::PopItemWidth();
             ImGui::TreePop();
         }
@@ -1101,8 +1126,20 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc)
         // A little bit silly, but we have to transform it back to device coordinates
         glm::uvec2 device_coordinates = { (ndc.x + 1) * 0.5 * m_swapchain_size.x, (1 - (ndc.y + 1) * 0.5) * m_swapchain_size.y };
 
-        // clamp device coordinates to the swapchain size
-        device_coordinates = glm::clamp(device_coordinates, glm::uvec2(0), glm::uvec2(m_swapchain_size - glm::vec2(1.0)));
+        const glm::uvec2 copy_extent = { 16, 1 };
+        const glm::uvec2 swapchain_size_u = glm::uvec2(m_swapchain_size);
+        qDebug() << "position readback ndc=" << ndc.x << ndc.y
+                 << "swapchain=" << swapchain_size_u.x << "x" << swapchain_size_u.y
+                 << "device=" << device_coordinates.x << device_coordinates.y;
+        if (swapchain_size_u.x < copy_extent.x || swapchain_size_u.y < copy_extent.y) {
+            return m_last_position_readback;
+        }
+
+        // clamp device coordinates so the 16x1 copy fits inside the texture
+        const glm::uvec2 max_origin = swapchain_size_u - copy_extent;
+        device_coordinates = glm::clamp(device_coordinates, glm::uvec2(0), max_origin);
+        qDebug() << "position readback origin clamped=" << device_coordinates.x << device_coordinates.y
+             << "copy_extent=" << copy_extent.x << "x" << copy_extent.y;
 
         const auto& src_texture = m_gbuffer->color_texture(1);
         // Need to read a multiple of 16 values to fit requirement for texture_to_buffer copy
@@ -1139,6 +1176,8 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         m_compute_graph = compute::nodes::NodeGraph::create_release_points_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
         m_compute_graph = compute::nodes::NodeGraph::create_iterative_simulation_compute_graph(*m_context->pipeline_manager(), m_device);
+    } else if (pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION) {
+        m_compute_graph = compute::nodes::NodeGraph::create_avalanche_animation_compute_graph(*m_context->pipeline_manager(), m_device);
     }
 
     update_compute_pipeline_settings();
@@ -1402,6 +1441,14 @@ void Window::update_compute_pipeline_settings()
         settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
         settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.release_point_interval);
         m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION) {
+        // tile selection
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
+
+        // tile source
+        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
+            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
     }
 }
 

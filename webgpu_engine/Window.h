@@ -60,6 +60,7 @@ public:
         D8_DIRECTIONS = 4,
         RELEASE_POINTS = 5,
         ITERATIVE_SIMULATION = 6,
+        AVALANCHE_ANIMATION = 7,
     };
 
 public:
