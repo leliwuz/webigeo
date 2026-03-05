@@ -179,6 +179,87 @@ void ParticleRenderer::render(WGPUCommandEncoder command_encoder,
     }
 }
 
+void ParticleRenderer::setup_gpu_driven(const webgpu::raii::RawBuffer<glm::vec4>* positions,
+    const webgpu::raii::RawBuffer<uint32_t>* indirect_args,
+    const glm::vec4& color)
+{
+    if (!positions || !indirect_args) {
+        clear_gpu_driven();
+        return;
+    }
+
+    const bool needs_bind_group = !m_gpu_bind_group || m_gpu_positions_buffer != positions;
+    m_gpu_positions_buffer = positions;
+    m_gpu_indirect_args_buffer = indirect_args;
+
+    const bool created_config = (m_gpu_particle_config_buffer == nullptr);
+    if (!m_gpu_particle_config_buffer) {
+        m_gpu_particle_config_buffer = std::make_unique<webgpu_engine::Buffer<ParticleConfig>>(
+            m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
+    }
+    if (created_config || color.x != m_gpu_particle_color.x || color.y != m_gpu_particle_color.y
+        || color.z != m_gpu_particle_color.z || color.w != m_gpu_particle_color.w) {
+        m_gpu_particle_color = color;
+        m_gpu_particle_config_buffer->data.color = color;
+        m_gpu_particle_config_buffer->update_gpu_data(m_queue);
+    }
+
+    if (needs_bind_group) {
+        m_gpu_bind_group = std::make_unique<webgpu::raii::BindGroup>(
+            m_device, m_pipeline_manager->particles_bind_group_layout(),
+            std::initializer_list<WGPUBindGroupEntry> {
+                m_gpu_positions_buffer->create_bind_group_entry(0),
+                m_gpu_particle_config_buffer->raw_buffer().create_bind_group_entry(1),
+                m_sphere_vertices->create_bind_group_entry(2),
+                m_sphere_normals->create_bind_group_entry(3)
+            });
+    }
+}
+
+void ParticleRenderer::render_gpu_driven(WGPUCommandEncoder command_encoder,
+    const webgpu::raii::BindGroup& shared_config,
+    const webgpu::raii::BindGroup& camera_config,
+    const webgpu::raii::BindGroup& depth_texture,
+    const webgpu::raii::TextureView& color_texture)
+{
+    if (!m_gpu_bind_group || !m_gpu_indirect_args_buffer) {
+        return;
+    }
+
+    WGPURenderPassColorAttachment color_attachment {};
+    color_attachment.view = color_texture.handle();
+    color_attachment.resolveTarget = nullptr;
+    color_attachment.loadOp = WGPULoadOp::WGPULoadOp_Load;
+    color_attachment.storeOp = WGPUStoreOp::WGPUStoreOp_Store;
+    color_attachment.clearValue = WGPUColor { 0.0, 0.0, 0.0, 0.0 };
+    color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+
+    WGPURenderPassDescriptor render_pass_descriptor {};
+    render_pass_descriptor.label = WGPUStringView { .data = "particle render pass (gpu-driven)", .length = WGPU_STRLEN };
+    render_pass_descriptor.colorAttachmentCount = 1;
+    render_pass_descriptor.colorAttachments = &color_attachment;
+    render_pass_descriptor.depthStencilAttachment = nullptr;
+    render_pass_descriptor.timestampWrites = nullptr;
+
+    auto render_pass = webgpu::raii::RenderPassEncoder(command_encoder, render_pass_descriptor);
+
+    wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_pipeline_manager->render_particles_pipeline().handle());
+    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, shared_config.handle(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 1, camera_config.handle(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 2, depth_texture.handle(), 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 3, m_gpu_bind_group->handle(), 0, nullptr);
+
+    wgpuRenderPassEncoderDrawIndirect(render_pass.handle(), m_gpu_indirect_args_buffer->handle(), 0);
+}
+
+void ParticleRenderer::clear_gpu_driven()
+{
+    m_gpu_positions_buffer = nullptr;
+    m_gpu_indirect_args_buffer = nullptr;
+    m_gpu_bind_group.reset();
+    m_gpu_particle_config_buffer.reset();
+}
+
 void ParticleRenderer::generate_sphere_mesh(uint32_t longitude_segments, uint32_t latitude_segments, float radius)
 {
     std::vector<glm::vec3> positions;

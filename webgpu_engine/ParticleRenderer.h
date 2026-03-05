@@ -54,12 +54,25 @@ public:
                              const webgpu::raii::BindGroup& depth_texture, 
                              const webgpu::raii::TextureView& color_texture);
 
+    void setup_gpu_driven(const webgpu::raii::RawBuffer<glm::vec4>* positions,
+        const webgpu::raii::RawBuffer<uint32_t>* indirect_args,
+        const glm::vec4& color = { 1.f, 1.0, 1.0, 1.f });
+
+    void render_gpu_driven(WGPUCommandEncoder command_encoder,
+        const webgpu::raii::BindGroup& shared_config,
+        const webgpu::raii::BindGroup& camera_config,
+        const webgpu::raii::BindGroup& depth_texture,
+        const webgpu::raii::TextureView& color_texture);
+
+    void clear_gpu_driven();
+
     // Clear all particles
     void clear_particles() {
         m_particle_states.clear();
         m_position_buffers.clear();
         m_particle_config_buffers.clear();
         m_bind_groups.clear();
+        clear_gpu_driven();
     }
     
     // Get number of active particles
@@ -69,6 +82,8 @@ public:
     const ParticleState* get_particle_state(size_t particle_id) const {
         return particle_id < m_particle_states.size() ? &m_particle_states[particle_id] : nullptr;
     }
+
+    uint32_t sphere_vertex_count() const { return m_sphere_index_count; }
 
 private:
     WGPUDevice m_device;
@@ -87,6 +102,13 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<glm::fvec4>> m_sphere_vertices;
     std::unique_ptr<webgpu::raii::RawBuffer<glm::fvec4>> m_sphere_normals;
     uint32_t m_sphere_index_count = 0;  // Actually vertex count for non-indexed drawing
+
+    // GPU-driven particle rendering state
+    const webgpu::raii::RawBuffer<glm::vec4>* m_gpu_positions_buffer = nullptr;
+    const webgpu::raii::RawBuffer<uint32_t>* m_gpu_indirect_args_buffer = nullptr;
+    std::unique_ptr<webgpu_engine::Buffer<ParticleRenderer::ParticleConfig>> m_gpu_particle_config_buffer;
+    std::unique_ptr<webgpu::raii::BindGroup> m_gpu_bind_group;
+    glm::vec4 m_gpu_particle_color = { 1.f, 1.0, 1.0, 1.f };
     
     // Helper method to generate sphere mesh
     void generate_sphere_mesh(uint32_t longitude_segments = 32, uint32_t latitude_segments = 16, float radius = 1.0f);

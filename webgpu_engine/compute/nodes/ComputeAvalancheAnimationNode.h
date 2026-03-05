@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Node.h"
-
 #include "webgpu_engine/Buffer.h"
 #include "webgpu_engine/PipelineManager.h"
 
@@ -76,6 +75,7 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_output_storage_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_output_count_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_velocity_storage_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_draw_indirect_args_buffer;
 
     const webgpu::raii::TextureWithSampler* m_cached_normal_texture = nullptr;
     const webgpu::raii::TextureWithSampler* m_cached_height_texture = nullptr;

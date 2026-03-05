@@ -22,7 +22,8 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
               },
               {
                   OutputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<glm::vec4>*>(), [this]() { return m_output_storage_buffer.get(); }),
-                  OutputSocket(*this, "valid count buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_output_count_buffer.get(); })
+                  OutputSocket(*this, "valid count buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_output_count_buffer.get(); }),
+                  OutputSocket(*this, "draw args buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_draw_indirect_args_buffer.get(); })
               })
         , m_pipeline_manager { &pipeline_manager }
         , m_device { device }
@@ -102,11 +103,17 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
             = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
                 m_output_dimensions.x * m_output_dimensions.y * m_settings.num_particles_per_cell,
                 "avalanche animation velocity storage");
+        m_draw_indirect_args_buffer
+            = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device,
+                WGPUBufferUsage_Storage | WGPUBufferUsage_Indirect | WGPUBufferUsage_CopyDst,
+                4, "avalanche animation draw args buffer");
 
         const uint32_t zero = 0u;
         m_output_count_buffer->write(m_queue, &zero, 1);
         const glm::vec4 zero_vec(0.0f);
         m_velocity_storage_buffer->write(m_queue, &zero_vec, 1);
+        const uint32_t draw_args_zero[4] = { 0u, 0u, 0u, 0u };
+        m_draw_indirect_args_buffer->write(m_queue, draw_args_zero, 4);
 
         // create layer buffers
         //TODO
@@ -177,7 +184,8 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
     void ComputeAvalancheAnimationNode::step_particles(float dt_seconds)
     {
-        if (!m_output_storage_buffer || !m_velocity_storage_buffer || !m_output_count_buffer || !m_cached_normal_texture || !m_cached_height_texture) {
+        if (!m_output_storage_buffer || !m_velocity_storage_buffer || !m_output_count_buffer || !m_draw_indirect_args_buffer
+            || !m_cached_normal_texture || !m_cached_height_texture) {
             return;
         }
 
@@ -195,6 +203,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
             m_output_storage_buffer->create_bind_group_entry(3),
             m_velocity_storage_buffer->create_bind_group_entry(4),
             m_output_count_buffer->create_bind_group_entry(5),
+            m_draw_indirect_args_buffer->create_bind_group_entry(6),
         };
 
         webgpu::raii::BindGroup compute_bind_group(

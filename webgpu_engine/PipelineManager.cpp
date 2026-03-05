@@ -1215,6 +1215,12 @@ void PipelineManager::create_avalanche_particle_step_compute_bind_group_layout()
     input_count_entry.buffer.type = WGPUBufferBindingType_Storage;
     input_count_entry.buffer.minBindingSize = 0;
 
+    WGPUBindGroupLayoutEntry output_draw_args_entry {};
+    output_draw_args_entry.binding = 6;
+    output_draw_args_entry.visibility = WGPUShaderStage_Compute;
+    output_draw_args_entry.buffer.type = WGPUBufferBindingType_Storage;
+    output_draw_args_entry.buffer.minBindingSize = 0;
+
     m_avalanche_particle_step_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
             input_settings_entry,
@@ -1223,6 +1229,7 @@ void PipelineManager::create_avalanche_particle_step_compute_bind_group_layout()
             input_positions_entry,
             input_velocities_entry,
             input_count_entry,
+            output_draw_args_entry,
         },
         "avalanche particle step compute bind group layout");
 }

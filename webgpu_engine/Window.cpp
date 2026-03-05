@@ -199,19 +199,26 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         m_needs_redraw = true;
     }
 
+    const bool render_gpu_driven_particles
+        = (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION && m_avalanche_particles_initialized);
+    //const bool render_cpu_particles = m_particle_renderer->particle_count() > 0;
+
     // render particles to color buffer
-    if (m_particle_renderer->particle_count() > 0) {
-        if (m_animation_running) {//TODO: when animation started
-            if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION && m_avalanche_particles_initialized) {
-                update_avalanche_particles_from_gpu(ImGui::GetIO().DeltaTime);
-            } else {
-                m_particle_renderer->update_particles(ImGui::GetIO().DeltaTime);
-            }
+    if (render_gpu_driven_particles) {
+        if (m_animation_running) {
+            update_avalanche_particles_from_gpu(ImGui::GetIO().DeltaTime);
+            m_needs_redraw = true;
+        }
+        m_particle_renderer->render_gpu_driven(
+            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
+    } /*else if (render_cpu_particles) {
+        if (m_animation_running) {
+            m_particle_renderer->update_particles(ImGui::GetIO().DeltaTime);
             m_needs_redraw = true;
         }
         m_particle_renderer->render(
             command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
-    }
+    }*/ // no cpu particles at the moment
 
     if (m_first_paint) {
         after_first_frame();
@@ -1509,7 +1516,7 @@ void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
 
 void Window::clear_avalanche_particles()
 {
-    if (!m_particle_renderer || m_particle_renderer->particle_count() == 0) {
+    if (!m_particle_renderer || (!m_avalanche_particles_initialized && m_particle_renderer->particle_count() == 0)) {
         return;
     }
     m_avalanche_particles_initialized = false;
@@ -1538,26 +1545,6 @@ void Window::update_avalanche_particles_from_gpu(float dt_seconds)
 {
     auto& anim_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheAnimationNode>("compute_avalanche_animation_node");
     anim_node.step_particles(dt_seconds);
-
-    auto* buffer = std::get<webgpu::raii::RawBuffer<glm::vec4>*>(anim_node.output_socket("storage buffer").get_data());
-    auto* count_buffer = std::get<webgpu::raii::RawBuffer<uint32_t>*>(anim_node.output_socket("valid count buffer").get_data());
-
-    std::vector<uint32_t> counts;
-    const WGPUMapAsyncStatus count_status = count_buffer->read_back_sync(m_context->webgpu_instance(), m_device, counts);
-    const size_t valid_count = (count_status == WGPUMapAsyncStatus_Success && !counts.empty()) ? counts[0] : 0u;
-
-    std::vector<glm::vec4> positions;
-    WGPUMapAsyncStatus status = buffer->read_back_sync(m_context->webgpu_instance(), m_device, positions);
-    if (status != WGPUMapAsyncStatus_Success) {
-        return;
-    }
-
-    const size_t count = std::min<size_t>(valid_count, positions.size());
-    const size_t update_count = std::min<size_t>(count, m_particle_renderer->particle_count());
-    for (size_t i = 0; i < update_count; ++i) {
-        const auto& pos = positions[i];
-        m_particle_renderer->update_particle_position(i, glm::dvec3(pos.x, pos.y, pos.z));
-    }
 }
 
 // Equivalent of std::bit_width that is available from C++20 onward
@@ -1978,26 +1965,21 @@ void Window::on_pipeline_run_completed()
         auto& anim_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheAnimationNode>("compute_avalanche_animation_node");
         auto* buffer = std::get<webgpu::raii::RawBuffer<glm::vec4>*>(anim_node.output_socket("storage buffer").get_data());
         auto* count_buffer = std::get<webgpu::raii::RawBuffer<uint32_t>*>(anim_node.output_socket("valid count buffer").get_data());
+        auto* draw_args_buffer = std::get<webgpu::raii::RawBuffer<uint32_t>*>(anim_node.output_socket("draw args buffer").get_data());
 
-        std::vector<uint32_t> counts;
-        const WGPUMapAsyncStatus count_status = count_buffer->read_back_sync(m_context->webgpu_instance(), m_device, counts);
-        const size_t valid_count = (count_status == WGPUMapAsyncStatus_Success && !counts.empty()) ? counts[0] : 0u;
-
-        std::vector<glm::vec4> positions;
-        WGPUMapAsyncStatus status = buffer->read_back_sync(m_context->webgpu_instance(), m_device, positions);
-        if (status == WGPUMapAsyncStatus_Success) {
-            const size_t count = std::min<size_t>(valid_count, positions.size());
-            for (size_t i = 0; i < count; ++i) {
-                const auto& pos = positions[i];
-                const glm::dvec3 world_pos(pos.x, pos.y, pos.z);
-                m_particle_renderer->spawn_particle_world(world_pos, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-                m_needs_redraw = true;
+        if (buffer && count_buffer && draw_args_buffer) {
+            std::vector<uint32_t> counts;
+            const WGPUMapAsyncStatus count_status = count_buffer->read_back_sync(m_context->webgpu_instance(), m_device, counts);
+            const uint32_t valid_count = (count_status == WGPUMapAsyncStatus_Success && !counts.empty()) ? counts[0] : 0u;
+            if (count_status == WGPUMapAsyncStatus_Success) {
+                qDebug() << "avalanche animation valid particle count:" << valid_count;
             }
-            qDebug() << "number of Particles in avalanche animation: " << count;
-            m_avalanche_particles_initialized = true;
 
-        } else {
-            qWarning() << "avalanche animation position readback failed:" << status;
+            const uint32_t draw_args[4] = { m_particle_renderer->sphere_vertex_count(), valid_count, 0u, 0u };
+            draw_args_buffer->write(m_queue, draw_args, 4);
+            m_particle_renderer->setup_gpu_driven(buffer, draw_args_buffer, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+            m_avalanche_particles_initialized = true;
+            m_needs_redraw = true;
         }
     }
 

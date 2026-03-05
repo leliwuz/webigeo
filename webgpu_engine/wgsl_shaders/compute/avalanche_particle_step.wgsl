@@ -12,17 +12,28 @@ struct OutputCount {
     value: atomic<u32>,
 };
 
+struct DrawIndirectArgs {
+    vertex_count: u32,
+    instance_count: u32,
+    first_vertex: u32,
+    first_instance: u32,
+};
+
 @group(0) @binding(0) var<uniform> settings: ParticleStepSettings;
 @group(0) @binding(1) var normal_texture: texture_2d<f32>;
 @group(0) @binding(2) var height_texture: texture_2d<f32>;
 @group(0) @binding(3) var<storage, read_write> positions: array<vec4f>;
 @group(0) @binding(4) var<storage, read_write> velocities: array<vec4f>;
 @group(0) @binding(5) var<storage, read_write> output_count: OutputCount;
+@group(0) @binding(6) var<storage, read_write> draw_args: DrawIndirectArgs;
 
 @compute @workgroup_size(256, 1, 1)
 fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     let idx = gid.x;
     let count = atomicLoad(&output_count.value);
+    if (idx == 0u) {
+        draw_args.instance_count = count;
+    }
     if (idx >= count) {
         return;
     }
