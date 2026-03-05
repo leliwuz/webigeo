@@ -324,7 +324,7 @@ void GuiManager::draw()
             m_terrain_renderer->get_camera_controller()->update();
         }
 
-        static int geometry_tile_source_index = 0; // 0 ... DSM, 1 ... DTM
+        static int geometry_tile_source_index = 1; // 0 ... DSM, 1 ... DTM
         if (ImGui::Combo("Geometry Tiles", &geometry_tile_source_index, "AlpineMaps DSM\0AlpineMaps DTM\0")) {
             auto geometry_load_service = m_terrain_renderer->get_rendering_context()->geometry_tile_load_service();
             if (geometry_tile_source_index == 0) {

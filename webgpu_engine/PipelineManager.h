@@ -33,7 +33,10 @@ public:
 
     const webgpu::raii::GenericRenderPipeline& render_tiles_pipeline() const;
     const webgpu::raii::GenericRenderPipeline& render_atmosphere_pipeline() const;
-    const webgpu::raii::RenderPipeline& render_lines_pipeline() const;
+    const webgpu::raii::RenderPipeline& render_lines_pipeline() const;    
+    const webgpu::raii::RenderPipeline& render_particles_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& avalanche_animation_compute_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& avalanche_particle_step_compute_pipeline() const;
     const webgpu::raii::GenericRenderPipeline& compose_pipeline() const;
 
     const webgpu::raii::CombinedComputePipeline& normals_compute_pipeline() const;
@@ -58,10 +61,13 @@ public:
     const webgpu::raii::BindGroupLayout& downsample_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& upsample_textures_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& lines_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& particles_bind_group_layout () const;    
     const webgpu::raii::BindGroupLayout& depth_texture_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& avalanche_trajectories_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& buffer_to_texture_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& avalanche_influence_area_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& avalanche_animation_compute_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& avalanche_particle_step_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& d8_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& release_point_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& height_decode_compute_bind_group_layout() const;
@@ -80,6 +86,7 @@ private:
     void create_render_tiles_pipeline();
     void create_render_atmosphere_pipeline();
     void create_render_lines_pipeline();
+    void create_render_particles_pipeline();
     void create_compose_pipeline();
     void create_shadow_pipeline();
     void create_normals_compute_pipeline();
@@ -89,6 +96,8 @@ private:
     void create_avalanche_trajectories_compute_pipeline();
     void create_buffer_to_texture_compute_pipeline();
     void create_avalanche_influence_area_compute_pipeline();
+    void create_avalanche_animation_compute_pipeline();
+    void create_avalanche_particle_step_compute_pipeline();
     void create_d8_compute_pipeline();
     void create_release_point_compute_pipeline();
     void create_height_decode_compute_pipeline();
@@ -104,10 +113,13 @@ private:
     void create_downsample_compute_bind_group_layout();
     void create_upsample_textures_compute_bind_group_layout();
     void create_lines_bind_group_layout();
+    void create_particles_bind_group_layout();
     void create_depth_texture_bind_group_layout();
     void create_avalanche_trajectory_bind_group_layout();
     void create_buffer_to_texture_bind_group_layout();
     void create_avalanche_influence_area_bind_group_layout();
+    void create_avalanche_animation_compute_bind_group_layout();
+    void create_avalanche_particle_step_compute_bind_group_layout();
     void create_d8_compute_bind_group_layout();
     void create_release_points_compute_bind_group_layout();
     void create_height_decode_compute_bind_group_layout();
@@ -124,6 +136,7 @@ private:
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_render_tiles_pipeline;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_render_atmosphere_pipeline;
     std::unique_ptr<webgpu::raii::RenderPipeline> m_render_lines_pipeline;
+    std::unique_ptr<webgpu::raii::RenderPipeline> m_render_particles_pipeline;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_compose_pipeline;
 
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_normals_compute_pipeline;
@@ -133,6 +146,8 @@ private:
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_trajectories_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_trajectories_buffer_to_texture_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_influence_area_compute_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_animation_compute_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_particle_step_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_d8_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_release_point_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_height_decode_compute_pipeline;
@@ -148,7 +163,10 @@ private:
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_snow_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_upsample_textures_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_lines_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_particles_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_depth_texture_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_animation_compute_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_particle_step_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_trajectories_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_trajectories_buffer_to_texture_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_influence_area_bind_group_layout;

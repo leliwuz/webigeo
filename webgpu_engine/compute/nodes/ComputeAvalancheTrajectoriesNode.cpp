@@ -196,7 +196,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
         cmd_buffer_descriptor.label = WGPUStringView { .data = "avalanche trajectories compute command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
-        wgpuQueueSubmit(m_queue, 1, &command);
+        wgpuQueueSubmit(m_queue, 1, &command); 
         wgpuCommandBufferRelease(command);
     }
 

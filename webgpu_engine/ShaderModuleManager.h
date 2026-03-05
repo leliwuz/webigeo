@@ -42,6 +42,7 @@ public:
     const webgpu::raii::ShaderModule& render_tiles() const;
     const webgpu::raii::ShaderModule& render_atmosphere() const;
     const webgpu::raii::ShaderModule& render_lines() const;
+    const webgpu::raii::ShaderModule& render_particles() const;
     const webgpu::raii::ShaderModule& compose_pass() const;
 
     const webgpu::raii::ShaderModule& normals_compute() const;
@@ -49,6 +50,8 @@ public:
     const webgpu::raii::ShaderModule& downsample_compute() const;
     const webgpu::raii::ShaderModule& upsample_textures_compute() const;
     const webgpu::raii::ShaderModule& avalanche_trajectories_compute() const;
+    const webgpu::raii::ShaderModule& avalanche_animation_compute() const;
+    const webgpu::raii::ShaderModule& avalanche_particle_step_compute() const;
     const webgpu::raii::ShaderModule& buffer_to_texture_compute() const;
     const webgpu::raii::ShaderModule& avalanche_influence_area_compute() const;
     const webgpu::raii::ShaderModule& d8_compute() const;
@@ -73,7 +76,8 @@ private:
 
     std::unique_ptr<webgpu::raii::ShaderModule> m_render_tiles_shader_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_render_atmosphere_shader_module;
-    std::unique_ptr<webgpu::raii::ShaderModule> m_render_lines_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_render_lines_module;    
+    std::unique_ptr<webgpu::raii::ShaderModule> m_render_particles_module;  
     std::unique_ptr<webgpu::raii::ShaderModule> m_compose_pass_shader_module;
 
     std::unique_ptr<webgpu::raii::ShaderModule> m_normals_compute_module;
@@ -81,6 +85,8 @@ private:
     std::unique_ptr<webgpu::raii::ShaderModule> m_downsample_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_upsample_textures_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_trajectories_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_animation_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_particle_step_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_buffer_to_texture_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_influence_area_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_d8_compute_module;

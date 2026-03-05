@@ -48,6 +48,7 @@ void ShaderModuleManager::create_shader_modules()
     m_render_tiles_shader_module = create_shader_module_for_file("render_tiles.wgsl");
     m_render_atmosphere_shader_module = create_shader_module_for_file("render_atmosphere.wgsl");
     m_render_lines_module = create_shader_module_for_file("render_lines.wgsl");
+    m_render_particles_module = create_shader_module_for_file("render_particles.wgsl");
     m_compose_pass_shader_module = create_shader_module_for_file("compose_pass.wgsl");
 
     m_normals_compute_module = create_shader_module_for_file("compute/normals_compute.wgsl");
@@ -55,6 +56,8 @@ void ShaderModuleManager::create_shader_modules()
     m_downsample_compute_module = create_shader_module_for_file("compute/downsample_compute.wgsl");
     m_upsample_textures_compute_module = create_shader_module_for_file("compute/upsample_textures_compute.wgsl");
     m_avalanche_trajectories_compute_module = create_shader_module_for_file("compute/avalanche_trajectories_compute.wgsl");
+    m_avalanche_animation_compute_module = create_shader_module_for_file("compute/avalanche_animation_compute.wgsl");
+    m_avalanche_particle_step_compute_module = create_shader_module_for_file("compute/avalanche_particle_step.wgsl");
     m_buffer_to_texture_compute_module = create_shader_module_for_file("compute/buffer_to_texture_compute.wgsl");
     m_avalanche_influence_area_compute_module = create_shader_module_for_file("compute/avalanche_influence_area_compute.wgsl");
     m_d8_compute_module = create_shader_module_for_file("compute/d8_compute.wgsl");
@@ -78,12 +81,15 @@ void ShaderModuleManager::release_shader_modules()
     m_compose_pass_shader_module.release();
     m_render_atmosphere_shader_module.release();
     m_render_lines_module.release();
+    m_render_particles_module.release();
 
     m_normals_compute_module.release();
     m_snow_compute_module.release();
     m_downsample_compute_module.release();
     m_upsample_textures_compute_module.release();
     m_avalanche_trajectories_compute_module.release();
+    m_avalanche_animation_compute_module.release();
+    m_avalanche_particle_step_compute_module.release();
     m_buffer_to_texture_compute_module.release();
     m_avalanche_influence_area_compute_module.release();
     m_d8_compute_module.release();
@@ -101,6 +107,8 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::render_atmosphere() const
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::render_lines() const { return *m_render_lines_module; }
 
+const webgpu::raii::ShaderModule& ShaderModuleManager::render_particles() const { return *m_render_particles_module; }
+
 const webgpu::raii::ShaderModule& ShaderModuleManager::compose_pass() const { return *m_compose_pass_shader_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::normals_compute() const { return *m_normals_compute_module; }
@@ -112,6 +120,10 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::downsample_compute() cons
 const webgpu::raii::ShaderModule& ShaderModuleManager::upsample_textures_compute() const { return *m_upsample_textures_compute_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_trajectories_compute() const { return *m_avalanche_trajectories_compute_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_animation_compute() const { return *m_avalanche_animation_compute_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_particle_step_compute() const { return *m_avalanche_particle_step_compute_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::buffer_to_texture_compute() const { return *m_buffer_to_texture_compute_module; }
 

@@ -23,6 +23,7 @@
 #include "PipelineSettings.h"
 #include "ShaderModuleManager.h"
 #include "TrackRenderer.h"
+#include "ParticleRenderer.h"
 #include "UniformBufferObjects.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "compute/NodeGraphRenderer.h"
@@ -36,6 +37,7 @@
 #include "nucleus/utils/ColourTexture.h"
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/webgpu.h>
+#include <atomic>
 
 class QOpenGLFramebufferObject;
 
@@ -59,6 +61,7 @@ public:
         D8_DIRECTIONS = 4,
         RELEASE_POINTS = 5,
         ITERATIVE_SIMULATION = 6,
+        AVALANCHE_ANIMATION = 7,
     };
 
 public:
@@ -113,6 +116,7 @@ private:
     void create_buffers();
     void create_bind_groups();
     void recreate_compose_bind_group();
+    void clear_avalanche_particles();
 
     // A helper function for the depth and position method.
     // ATTENTION: This function is synchronous and will hold rendering. Use with caution!
@@ -141,6 +145,8 @@ private:
     void after_first_frame();
 
     void display_message(const std::string& message);
+
+    void update_avalanche_particles_from_gpu(float dt_seconds);
 
 private:
     WGPUInstance m_instance = nullptr;
@@ -173,8 +179,14 @@ private:
     bool m_needs_redraw = true;
     bool m_first_paint = true;
     bool m_is_first_pipeline_run = true;
+    bool m_animation_running = true;
+    std::atomic_bool m_particle_clear_requested { false };
+    std::atomic_bool m_particle_clear_ready { false };
+    bool m_avalanche_particles_initialized = false;
 
     std::unique_ptr<TrackRenderer> m_track_renderer;
+
+    std::unique_ptr<ParticleRenderer> m_particle_renderer;
 
     std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
     ComputePipelineType m_active_compute_pipeline_type;

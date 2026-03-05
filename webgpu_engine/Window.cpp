@@ -23,15 +23,16 @@
 #include "compute/nodes/BufferToTextureNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
+#include "compute/nodes/ComputeAvalancheAnimationNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/LoadRegionAabbNode.h"
 #include "compute/nodes/LoadTextureNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "compute/nodes/TileExportNode.h"
-#include "compute/nodes/util.h"
 #include "nucleus/tile/drawing.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
+#include "nucleus/srs.h"
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
 #include <QFile>
@@ -89,6 +90,8 @@ void Window::initialise_gpu()
     create_bind_groups();
 
     m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_context->pipeline_manager());
+
+    m_particle_renderer = std::make_unique<ParticleRenderer>(m_device, *m_context->pipeline_manager());
 
     m_image_overlay_settings_uniform_buffer = std::make_unique<Buffer<ImageOverlaySettings>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_image_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(0);
@@ -190,10 +193,38 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
             command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
     }
 
+    if (m_particle_clear_ready.exchange(false)) {
+        m_particle_renderer->clear_particles();
+        m_particle_clear_requested.store(false);
+        m_needs_redraw = true;
+    }
+
+    const bool render_gpu_driven_particles
+        = (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION && m_avalanche_particles_initialized);
+    //const bool render_cpu_particles = m_particle_renderer->particle_count() > 0;
+
+    // render particles to color buffer
+    if (render_gpu_driven_particles) {
+        if (m_animation_running) {
+            update_avalanche_particles_from_gpu(ImGui::GetIO().DeltaTime);
+            m_needs_redraw = true;
+        }
+        m_particle_renderer->render_gpu_driven(
+            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
+    } /*else if (render_cpu_particles) {
+        if (m_animation_running) {
+            m_particle_renderer->update_particles(ImGui::GetIO().DeltaTime);
+            m_needs_redraw = true;
+        }
+        m_particle_renderer->render(
+            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
+    }*/ // no cpu particles at the moment
+
     if (m_first_paint) {
         after_first_frame();
     }
-    m_needs_redraw = false;
+    if (!m_animation_running)
+        m_needs_redraw = false;
     m_first_paint = false;
 }
 
@@ -579,6 +610,9 @@ void Window::paint_compute_pipeline_gui()
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(150 / 255.0f, 10 / 255.0f, 10 / 255.0f, 1.00f));
         if (ImGui::Button("Clear", ImVec2(100, 20))) {
+            if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION) {
+                clear_avalanche_particles();
+            }
             create_and_set_compute_pipeline(m_active_compute_pipeline_type);
             m_needs_redraw = true;
         }
@@ -611,12 +645,17 @@ void Window::paint_compute_pipeline_gui()
             //{ "D8 directions", ComputePipelineType::D8_DIRECTIONS },
             { "Release points", ComputePipelineType::RELEASE_POINTS },
             { "Iterative simulation (WIP)", ComputePipelineType::ITERATIVE_SIMULATION },
+            { "Avalanche animation", ComputePipelineType::AVALANCHE_ANIMATION },
         };
         const char* current_item_label = overlays[overlays_current_item].first.c_str();
         if (ImGui::BeginCombo("Type", current_item_label)) {
             for (size_t i = 0; i < overlays.size(); i++) {
                 bool is_selected = ((size_t)overlays_current_item == i);
                 if (ImGui::Selectable(overlays[i].first.c_str(), is_selected)) {
+                    if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION
+                        && overlays[i].second != ComputePipelineType::AVALANCHE_ANIMATION) {
+                        clear_avalanche_particles();
+                    }
                     overlays_current_item = int(i);
                     create_and_set_compute_pipeline(overlays[i].second);
                 }
@@ -1045,7 +1084,30 @@ void Window::paint_compute_pipeline_gui()
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
-            }
+            } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION){
+                ImGui::SliderInt("Animation interval", &m_compute_pipeline_settings.animation_release_point_interval, 1, 64, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
+                ImGui::DragFloatRange2("Animation steepness",
+                    &m_compute_pipeline_settings.animation_min_slope_angle,
+                    &m_compute_pipeline_settings.animation_max_slope_angle,
+                    0.1f,
+                    0.0f,
+                    90.0f,
+                    "Min: %.1f°",
+                    "Max: %.1f°",
+                    ImGuiSliderFlags_AlwaysClamp);
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
+                ImGui::SliderInt("Num Particles per Cell", &m_compute_pipeline_settings.num_particles_per_cell, 1u, 100u, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+            } 
             ImGui::PopItemWidth();
             ImGui::TreePop();
         }
@@ -1089,8 +1151,20 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc)
         // A little bit silly, but we have to transform it back to device coordinates
         glm::uvec2 device_coordinates = { (ndc.x + 1) * 0.5 * m_swapchain_size.x, (1 - (ndc.y + 1) * 0.5) * m_swapchain_size.y };
 
-        // clamp device coordinates to the swapchain size
-        device_coordinates = glm::clamp(device_coordinates, glm::uvec2(0), glm::uvec2(m_swapchain_size - glm::vec2(1.0)));
+        const glm::uvec2 copy_extent = { 16, 1 };
+        const glm::uvec2 swapchain_size_u = glm::uvec2(m_swapchain_size);
+        qDebug() << "position readback ndc=" << ndc.x << ndc.y
+                 << "swapchain=" << swapchain_size_u.x << "x" << swapchain_size_u.y
+                 << "device=" << device_coordinates.x << device_coordinates.y;
+        if (swapchain_size_u.x < copy_extent.x || swapchain_size_u.y < copy_extent.y) {
+            return m_last_position_readback;
+        }
+
+        // clamp device coordinates so the 16x1 copy fits inside the texture
+        const glm::uvec2 max_origin = swapchain_size_u - copy_extent;
+        device_coordinates = glm::clamp(device_coordinates, glm::uvec2(0), max_origin);
+        qDebug() << "position readback origin clamped=" << device_coordinates.x << device_coordinates.y
+             << "copy_extent=" << copy_extent.x << "x" << copy_extent.y;
 
         const auto& src_texture = m_gbuffer->color_texture(1);
         // Need to read a multiple of 16 values to fit requirement for texture_to_buffer copy
@@ -1127,6 +1201,8 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         m_compute_graph = compute::nodes::NodeGraph::create_release_points_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
         m_compute_graph = compute::nodes::NodeGraph::create_iterative_simulation_compute_graph(*m_context->pipeline_manager(), m_device);
+    } else if (pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION) {
+        m_compute_graph = compute::nodes::NodeGraph::create_avalanche_animation_compute_graph(*m_context->pipeline_manager(), m_device);
     }
 
     update_compute_pipeline_settings();
@@ -1390,12 +1466,38 @@ void Window::update_compute_pipeline_settings()
         settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
         settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.release_point_interval);
         m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION) {
+        // tile selection
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
+
+        // tile source
+        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
+            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
+
+        compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings release_settings;
+        release_settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.animation_min_slope_angle);
+        release_settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.animation_max_slope_angle);
+        release_settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.animation_release_point_interval);
+        m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(release_settings);
+
+        compute::nodes::ComputeAvalancheAnimationNode::AvalancheAnimationSettings animation_settings;
+        animation_settings.zoom_level = m_compute_pipeline_settings.zoomlevel;
+        animation_settings.min_slope_angle = release_settings.min_slope_angle;
+        animation_settings.max_slope_angle = release_settings.max_slope_angle;
+        animation_settings.sampling_interval = release_settings.sampling_interval;
+        animation_settings.num_particles_per_cell = m_compute_pipeline_settings.num_particles_per_cell;
+        m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheAnimationNode>("compute_avalanche_animation_node").set_settings(animation_settings);
     }
 }
 
 void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
 {
     update_compute_pipeline_settings();
+    if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION) {
+        clear_avalanche_particles();
+        m_avalanche_particles_initialized = false;
+    }
     if (m_is_region_selected) {
         if (!entry_node.empty() && !m_is_first_pipeline_run) {
             if (m_compute_graph->exists_node(entry_node)) {
@@ -1410,6 +1512,39 @@ void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
     } else {
         qWarning() << "No region selected. Please load track.";
     }
+}
+
+void Window::clear_avalanche_particles()
+{
+    if (!m_particle_renderer || (!m_avalanche_particles_initialized && m_particle_renderer->particle_count() == 0)) {
+        return;
+    }
+    m_avalanche_particles_initialized = false;
+    if (m_particle_clear_requested.exchange(true)) {
+        return;
+    }
+
+    const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              auto* _this = static_cast<Window*>(userdata);
+              _this->m_particle_clear_ready.store(true);
+          };
+
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);
+}
+
+void Window::update_avalanche_particles_from_gpu(float dt_seconds)
+{
+    auto& anim_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheAnimationNode>("compute_avalanche_animation_node");
+    anim_node.step_particles(dt_seconds);
 }
 
 // Equivalent of std::bit_width that is available from C++20 onward
@@ -1623,6 +1758,7 @@ void Window::load_track_and_focus(const std::string& path)
         }
     }
     m_track_renderer->add_track(points);
+    m_particle_renderer->spawn_particle(points.front(), glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)); // for testing, spawn a particle at start of track
 
     const auto track_aabb = nucleus::track::compute_world_aabb(*gpx_track);
     focus_region_3d(track_aabb);
@@ -1825,6 +1961,26 @@ void Window::on_pipeline_run_completed()
         radix::geometry::Aabb<2, double> selected_aabb = *std::get<const radix::geometry::Aabb<2, double>*>(select_tiles_node.output_socket("region aabb").get_data());
         selected_aabb.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65); // stitch node ignores last col/row
         update_compute_overlay_aabb(selected_aabb);
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_ANIMATION) {
+        auto& anim_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheAnimationNode>("compute_avalanche_animation_node");
+        auto* buffer = std::get<webgpu::raii::RawBuffer<glm::vec4>*>(anim_node.output_socket("storage buffer").get_data());
+        auto* count_buffer = std::get<webgpu::raii::RawBuffer<uint32_t>*>(anim_node.output_socket("valid count buffer").get_data());
+        auto* draw_args_buffer = std::get<webgpu::raii::RawBuffer<uint32_t>*>(anim_node.output_socket("draw args buffer").get_data());
+
+        if (buffer && count_buffer && draw_args_buffer) {
+            std::vector<uint32_t> counts;
+            const WGPUMapAsyncStatus count_status = count_buffer->read_back_sync(m_context->webgpu_instance(), m_device, counts);
+            const uint32_t valid_count = (count_status == WGPUMapAsyncStatus_Success && !counts.empty()) ? counts[0] : 0u;
+            if (count_status == WGPUMapAsyncStatus_Success) {
+                qDebug() << "avalanche animation valid particle count:" << valid_count;
+            }
+
+            const uint32_t draw_args[4] = { m_particle_renderer->sphere_vertex_count(), valid_count, 0u, 0u };
+            draw_args_buffer->write(m_queue, draw_args, 4);
+            m_particle_renderer->setup_gpu_driven(buffer, draw_args_buffer, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+            m_avalanche_particles_initialized = true;
+            m_needs_redraw = true;
+        }
     }
 
     // QUICK HACK: write pipeline settings to files

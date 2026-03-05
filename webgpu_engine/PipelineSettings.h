@@ -45,6 +45,11 @@ struct ComputePipelineSettings {
     uint32_t num_paths_per_release_cell = 1024u;
     uint32_t num_runs = 1u;
 
+    int num_particles_per_cell = 10u; // avalanche animation node
+    int animation_release_point_interval = 1; // avalanche animation node
+    float animation_min_slope_angle = 40.0f; // avalanche animation node
+    float animation_max_slope_angle = 45.0f; // avalanche animation node
+
     float random_contribution = 25.0f;
     float persistence_contribution = 0.9f;
     uint32_t random_seed = 1u;

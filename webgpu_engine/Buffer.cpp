@@ -18,11 +18,13 @@
  *****************************************************************************/
 
 #include "Buffer.h"
+#include "ParticleRenderer.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
 #include "compute/nodes/BufferToTextureNode.h"
 #include "compute/nodes/ComputeAvalancheInfluenceAreaNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
+#include "compute/nodes/ComputeAvalancheAnimationNode.h"
 #include "compute/nodes/ComputeNormalsNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
@@ -66,6 +68,9 @@ template class Buffer<compute::nodes::IterativeSimulationNode::IterativeSimulati
 template class Buffer<compute::nodes::HeightDecodeNode::HeightDecodeSettingsUniform>;
 template class Buffer<TrackRenderer::LineConfig>;
 template class Buffer<ImageOverlaySettings>;
+template class Buffer<ParticleRenderer::ParticleConfig>;
+template class Buffer<compute::nodes::ComputeAvalancheAnimationNode::AvalancheAnimationSettingsUniform>;
+template class Buffer<compute::nodes::ComputeAvalancheAnimationNode::AvalancheParticleStepSettingsUniform>;
 // TODO
 // template class UniformBuffer<uboShadowConfig>;
 

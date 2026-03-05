@@ -35,6 +35,11 @@ void ComputePipelineSettings::write_to_json_file(const ComputePipelineSettings& 
     object["trigger_point_min_slope_angle"] = settings.trigger_point_min_slope_angle;
     object["trigger_point_max_slope_angle"] = settings.trigger_point_max_slope_angle;
 
+    object["animation_release_point_interval"] = qint64(settings.animation_release_point_interval);
+    object["animation_min_slope_angle"] = settings.animation_min_slope_angle;
+    object["animation_max_slope_angle"] = settings.animation_max_slope_angle;
+    object["num_particles_per_cell"] = qint64(settings.num_particles_per_cell);
+
     object["num_steps"] = qint64(settings.num_steps);
     object["num_paths_per_release_cell"] = qint64(settings.num_paths_per_release_cell);
 
@@ -79,6 +84,19 @@ ComputePipelineSettings ComputePipelineSettings::read_from_json_file(const std::
     settings.release_point_interval = uint32_t(object["release_point_interval"].toInteger());
     settings.trigger_point_min_slope_angle = float(object["trigger_point_min_slope_angle"].toDouble());
     settings.trigger_point_max_slope_angle = float(object["trigger_point_max_slope_angle"].toDouble());
+
+    if (object.contains("animation_release_point_interval")) {
+        settings.animation_release_point_interval = uint32_t(object["animation_release_point_interval"].toInteger());
+    }
+    if (object.contains("animation_min_slope_angle")) {
+        settings.animation_min_slope_angle = float(object["animation_min_slope_angle"].toDouble());
+    }
+    if (object.contains("animation_max_slope_angle")) {
+        settings.animation_max_slope_angle = float(object["animation_max_slope_angle"].toDouble());
+    }
+    if (object.contains("num_particles_per_cell")) {
+        settings.num_particles_per_cell = uint32_t(object["num_particles_per_cell"].toInteger());
+    }
 
     if (object.contains("random_seed")) {
         settings.random_seed = uint32_t(object["random_seed"].toInteger());
