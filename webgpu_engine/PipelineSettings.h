@@ -49,6 +49,14 @@ struct ComputePipelineSettings {
     int animation_release_point_interval = 1; // avalanche animation node
     float animation_min_slope_angle = 40.0f; // avalanche animation node
     float animation_max_slope_angle = 45.0f; // avalanche animation node
+    bool use_sph_particle_step = true; // avalanche animation node
+    float sph_smoothing_length = 8.0f;
+    float sph_particle_mass = 1.0f;
+    float sph_rest_density = 1.0f;
+    float sph_pressure_stiffness = 15.0f;
+    float sph_viscosity = 0.08f;
+    float sph_epsilon = 1e-4f;
+    float sph_max_speed = 40.0f;
 
     float random_contribution = 25.0f;
     float persistence_contribution = 0.9f;

@@ -37,6 +37,9 @@ public:
     const webgpu::raii::RenderPipeline& render_particles_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& avalanche_animation_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& avalanche_particle_step_compute_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& avalanche_particle_sph_prepare_compute_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& avalanche_particle_sph_density_compute_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& avalanche_particle_sph_force_compute_pipeline() const;
     const webgpu::raii::GenericRenderPipeline& compose_pipeline() const;
 
     const webgpu::raii::CombinedComputePipeline& normals_compute_pipeline() const;
@@ -98,6 +101,9 @@ private:
     void create_avalanche_influence_area_compute_pipeline();
     void create_avalanche_animation_compute_pipeline();
     void create_avalanche_particle_step_compute_pipeline();
+    void create_avalanche_particle_sph_prepare_compute_pipeline();
+    void create_avalanche_particle_sph_density_compute_pipeline();
+    void create_avalanche_particle_sph_force_compute_pipeline();
     void create_d8_compute_pipeline();
     void create_release_point_compute_pipeline();
     void create_height_decode_compute_pipeline();
@@ -148,6 +154,9 @@ private:
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_influence_area_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_animation_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_particle_step_compute_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_particle_sph_prepare_compute_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_particle_sph_density_compute_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_particle_sph_force_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_d8_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_release_point_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_height_decode_compute_pipeline;

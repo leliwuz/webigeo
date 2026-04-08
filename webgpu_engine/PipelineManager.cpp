@@ -41,6 +41,9 @@ const webgpu::raii::RenderPipeline& PipelineManager::render_particles_pipeline()
 
 const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_animation_compute_pipeline() const { return *m_avalanche_animation_compute_pipeline; }
 const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_particle_step_compute_pipeline() const { return *m_avalanche_particle_step_compute_pipeline; }
+const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_particle_sph_prepare_compute_pipeline() const { return *m_avalanche_particle_sph_prepare_compute_pipeline; }
+const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_particle_sph_density_compute_pipeline() const { return *m_avalanche_particle_sph_density_compute_pipeline; }
+const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_particle_sph_force_compute_pipeline() const { return *m_avalanche_particle_sph_force_compute_pipeline; }
 
 const webgpu::raii::GenericRenderPipeline& PipelineManager::compose_pipeline() const { return *m_compose_pipeline; }
 
@@ -150,6 +153,9 @@ void PipelineManager::create_pipelines()
     create_avalanche_trajectories_compute_pipeline();
     create_avalanche_animation_compute_pipeline();
     create_avalanche_particle_step_compute_pipeline();
+    create_avalanche_particle_sph_prepare_compute_pipeline();
+    create_avalanche_particle_sph_density_compute_pipeline();
+    create_avalanche_particle_sph_force_compute_pipeline();
     create_buffer_to_texture_compute_pipeline();
     create_avalanche_influence_area_compute_pipeline();
     create_d8_compute_pipeline();
@@ -203,6 +209,9 @@ void PipelineManager::release_pipelines()
     m_avalanche_trajectories_compute_pipeline.release();
     m_avalanche_animation_compute_pipeline.release();
     m_avalanche_particle_step_compute_pipeline.release();
+    m_avalanche_particle_sph_prepare_compute_pipeline.release();
+    m_avalanche_particle_sph_density_compute_pipeline.release();
+    m_avalanche_particle_sph_force_compute_pipeline.release();
     m_avalanche_trajectories_buffer_to_texture_compute_pipeline.release();
     m_avalanche_influence_area_compute_pipeline.release();
     m_d8_compute_pipeline.release();
@@ -439,6 +448,27 @@ void PipelineManager::create_avalanche_particle_step_compute_pipeline()
 {
     m_avalanche_particle_step_compute_pipeline
         = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->avalanche_particle_step_compute(),
+            std::vector<const webgpu::raii::BindGroupLayout*> { m_avalanche_particle_step_compute_bind_group_layout.get() });
+}
+
+void PipelineManager::create_avalanche_particle_sph_prepare_compute_pipeline()
+{
+    m_avalanche_particle_sph_prepare_compute_pipeline
+        = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->avalanche_particle_sph_prepare_compute(),
+            std::vector<const webgpu::raii::BindGroupLayout*> { m_avalanche_particle_step_compute_bind_group_layout.get() });
+}
+
+void PipelineManager::create_avalanche_particle_sph_density_compute_pipeline()
+{
+    m_avalanche_particle_sph_density_compute_pipeline
+        = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->avalanche_particle_sph_density_compute(),
+            std::vector<const webgpu::raii::BindGroupLayout*> { m_avalanche_particle_step_compute_bind_group_layout.get() });
+}
+
+void PipelineManager::create_avalanche_particle_sph_force_compute_pipeline()
+{
+    m_avalanche_particle_sph_force_compute_pipeline
+        = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->avalanche_particle_sph_force_compute(),
             std::vector<const webgpu::raii::BindGroupLayout*> { m_avalanche_particle_step_compute_bind_group_layout.get() });
 }
 
@@ -1221,6 +1251,18 @@ void PipelineManager::create_avalanche_particle_step_compute_bind_group_layout()
     output_draw_args_entry.buffer.type = WGPUBufferBindingType_Storage;
     output_draw_args_entry.buffer.minBindingSize = 0;
 
+    WGPUBindGroupLayoutEntry density_entry {};
+    density_entry.binding = 7;
+    density_entry.visibility = WGPUShaderStage_Compute;
+    density_entry.buffer.type = WGPUBufferBindingType_Storage;
+    density_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry pressure_entry {};
+    pressure_entry.binding = 8;
+    pressure_entry.visibility = WGPUShaderStage_Compute;
+    pressure_entry.buffer.type = WGPUBufferBindingType_Storage;
+    pressure_entry.buffer.minBindingSize = 0;
+
     m_avalanche_particle_step_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
             input_settings_entry,
@@ -1230,6 +1272,8 @@ void PipelineManager::create_avalanche_particle_step_compute_bind_group_layout()
             input_velocities_entry,
             input_count_entry,
             output_draw_args_entry,
+            density_entry,
+            pressure_entry,
         },
         "avalanche particle step compute bind group layout");
 }

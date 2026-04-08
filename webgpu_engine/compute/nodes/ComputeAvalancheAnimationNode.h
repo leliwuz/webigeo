@@ -23,6 +23,14 @@ public:
         float max_slope_angle = glm::radians(45.0f); // max slope angle [rad]
         glm::uvec2 sampling_interval = glm::uvec2(1, 1); // sampling interval in x and y direction [every sampling_interval texels]
         int num_particles_per_cell = 2; // number of particles to release per release cell
+        bool use_sph_simulation = true;
+        float sph_smoothing_length = 8.0f;
+        float sph_particle_mass = 1.0f;
+        float sph_rest_density = 1.0f;
+        float sph_pressure_stiffness = 15.0f;
+        float sph_viscosity = 0.08f;
+        float sph_epsilon = 1e-4f;
+        float sph_max_speed = 40.0f;
     };
 private:
     struct AvalancheAnimationSettingsUniform {
@@ -42,6 +50,14 @@ private:
         glm::uvec2 output_resolution;
         float dt;
         float gravity;
+        float sph_smoothing_length;
+        float sph_particle_mass;
+        float sph_rest_density;
+        float sph_pressure_stiffness;
+        float sph_viscosity;
+        float sph_epsilon;
+        float sph_max_speed;
+        float padding_0;
     };
 
 public:
@@ -76,6 +92,8 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_output_count_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_velocity_storage_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_draw_indirect_args_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<float>> m_density_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<float>> m_pressure_buffer;
 
     const webgpu::raii::TextureWithSampler* m_cached_normal_texture = nullptr;
     const webgpu::raii::TextureWithSampler* m_cached_height_texture = nullptr;

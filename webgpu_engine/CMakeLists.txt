@@ -125,6 +125,9 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/compute/avalanche_trajectories_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/avalanche_animation_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/avalanche_particle_step.wgsl"
+        "${SHADER_BASE_DIR}/compute/avalanche_particle_sph_prepare.wgsl"
+        "${SHADER_BASE_DIR}/compute/avalanche_particle_sph_density.wgsl"
+        "${SHADER_BASE_DIR}/compute/avalanche_particle_sph_force.wgsl"
         "${SHADER_BASE_DIR}/compute/buffer_to_texture_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/avalanche_influence_area_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/d8_compute.wgsl"
@@ -147,6 +150,7 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/util/filtering.wgsl"
         "${SHADER_BASE_DIR}/util/noise.wgsl"
         "${SHADER_BASE_DIR}/util/random.wgsl"
+        "${SHADER_BASE_DIR}/util/sph_kernels.wgsl"
     )
 
 # Note: This has to go into the webgpu_app as soon as we don't use ImGui in the engine anymore!!!
