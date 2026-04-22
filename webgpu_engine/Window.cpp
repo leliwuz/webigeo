@@ -1120,6 +1120,11 @@ void Window::paint_compute_pipeline_gui()
                 should_update_sph_runtime |= ImGui::SliderFloat("SPH viscosity", &m_compute_pipeline_settings.sph_viscosity, 0.0f, 2.0f, "%.4f", ImGuiSliderFlags_AlwaysClamp);
                 should_update_sph_runtime |= ImGui::SliderFloat("SPH epsilon", &m_compute_pipeline_settings.sph_epsilon, 1e-6f, 1e-2f, "%.6f", ImGuiSliderFlags_AlwaysClamp);
                 should_update_sph_runtime |= ImGui::SliderFloat("SPH max speed", &m_compute_pipeline_settings.sph_max_speed, 0.1f, 200.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                should_update_sph_runtime |= ImGui::SliderFloat("SFLM friction angle", &m_compute_pipeline_settings.sflm_friction_angle, 0.0f, 90.0f, "%.1f°", ImGuiSliderFlags_AlwaysClamp);
+                should_update_sph_runtime |= ImGui::SliderFloat("SFLM min travel angle", &m_compute_pipeline_settings.sflm_min_travel_angle, 0.0f, 90.0f, "%.1f°", ImGuiSliderFlags_AlwaysClamp);
+                should_update_sph_runtime |= ImGui::SliderFloat("SFLM max velocity", &m_compute_pipeline_settings.sflm_max_velocity, 0.1f, 200.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                should_update_sph_runtime |= ImGui::SliderFloat("SFLM damping", &m_compute_pipeline_settings.sflm_damping, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+                should_update_sph_runtime |= ImGui::SliderFloat("SFLM stop velocity", &m_compute_pipeline_settings.sflm_stop_velocity, 0.0f, 10.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
 
                 if (ImGui::Button("Reset SPH defaults")) {
                     const compute::nodes::ComputeAvalancheAnimationNode::AvalancheAnimationSettings defaults {};
@@ -1134,9 +1139,21 @@ void Window::paint_compute_pipeline_gui()
                     should_update_sph_runtime = true;
                 }
 
+                if (ImGui::Button("Reset SFLM defaults")) {
+                    const compute::nodes::ComputeAvalancheAnimationNode::AvalancheAnimationSettings defaults {};
+                    m_compute_pipeline_settings.sflm_friction_angle = glm::degrees(defaults.sflm_friction_angle);
+                    m_compute_pipeline_settings.sflm_min_travel_angle = glm::degrees(defaults.sflm_min_travel_angle);
+                    m_compute_pipeline_settings.sflm_max_velocity = defaults.sflm_max_velocity;
+                    m_compute_pipeline_settings.sflm_damping = defaults.sflm_damping;
+                    m_compute_pipeline_settings.sflm_stop_velocity = defaults.sflm_stop_velocity;
+                    should_update_sph_runtime = true;
+                }
+
+
                 if (should_update_sph_runtime) {
                     update_avalanche_animation_runtime_settings();
                 }
+
             } 
             ImGui::PopItemWidth();
             ImGui::TreePop();
@@ -1525,6 +1542,12 @@ void Window::update_compute_pipeline_settings()
         animation_settings.sph_viscosity = m_compute_pipeline_settings.sph_viscosity;
         animation_settings.sph_epsilon = m_compute_pipeline_settings.sph_epsilon;
         animation_settings.sph_max_speed = m_compute_pipeline_settings.sph_max_speed;
+        animation_settings.use_SFLM_simulation = m_compute_pipeline_settings.use_SFLM_simulation;
+        animation_settings.sflm_friction_angle = glm::radians(m_compute_pipeline_settings.sflm_friction_angle);
+        animation_settings.sflm_min_travel_angle = glm::radians(m_compute_pipeline_settings.sflm_min_travel_angle);
+        animation_settings.sflm_max_velocity = m_compute_pipeline_settings.sflm_max_velocity;
+        animation_settings.sflm_damping = m_compute_pipeline_settings.sflm_damping;
+        animation_settings.sflm_stop_velocity = m_compute_pipeline_settings.sflm_stop_velocity;
         m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheAnimationNode>("compute_avalanche_animation_node").set_settings(animation_settings);
     }
 }
@@ -1546,6 +1569,12 @@ void Window::update_avalanche_animation_runtime_settings()
     settings.sph_viscosity = m_compute_pipeline_settings.sph_viscosity;
     settings.sph_epsilon = m_compute_pipeline_settings.sph_epsilon;
     settings.sph_max_speed = m_compute_pipeline_settings.sph_max_speed;
+    settings.use_SFLM_simulation = m_compute_pipeline_settings.use_SFLM_simulation;
+    settings.sflm_friction_angle = glm::radians(m_compute_pipeline_settings.sflm_friction_angle);
+    settings.sflm_min_travel_angle = glm::radians(m_compute_pipeline_settings.sflm_min_travel_angle);
+    settings.sflm_max_velocity = m_compute_pipeline_settings.sflm_max_velocity;
+    settings.sflm_damping = m_compute_pipeline_settings.sflm_damping;
+    settings.sflm_stop_velocity = m_compute_pipeline_settings.sflm_stop_velocity;
     anim_node.set_settings(settings);
 }
 

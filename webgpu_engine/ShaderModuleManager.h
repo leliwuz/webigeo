@@ -55,6 +55,8 @@ public:
     const webgpu::raii::ShaderModule& avalanche_particle_sph_prepare_compute() const;
     const webgpu::raii::ShaderModule& avalanche_particle_sph_density_compute() const;
     const webgpu::raii::ShaderModule& avalanche_particle_sph_force_compute() const;
+    const webgpu::raii::ShaderModule& avalanche_particle_SFLM_compute() const;
+    const webgpu::raii::ShaderModule& avalanche_particle_compact_compute() const;
     const webgpu::raii::ShaderModule& buffer_to_texture_compute() const;
     const webgpu::raii::ShaderModule& avalanche_influence_area_compute() const;
     const webgpu::raii::ShaderModule& d8_compute() const;
@@ -93,6 +95,8 @@ private:
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_particle_sph_prepare_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_particle_sph_density_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_particle_sph_force_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_particle_SFLM_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_particle_compact_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_buffer_to_texture_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_influence_area_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_d8_compute_module;

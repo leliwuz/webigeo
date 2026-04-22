@@ -127,6 +127,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
         const float zero_f = 0.0f;
         m_density_buffer->write(m_queue, &zero_f, 1);
         m_pressure_buffer->write(m_queue, &zero_f, 1);
+        m_particle_step_frame_counter = 0u;
 
         // create layer buffers
         //TODO
@@ -215,9 +216,13 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
         m_step_settings_uniform.data.sph_viscosity = m_settings.sph_viscosity;
         m_step_settings_uniform.data.sph_epsilon = m_settings.sph_epsilon;
         m_step_settings_uniform.data.sph_max_speed = m_settings.sph_max_speed;
-        m_step_settings_uniform.data.padding_0 = 0.0f;
+        m_step_settings_uniform.data.sflm_friction_angle = m_settings.sflm_friction_angle;
+        m_step_settings_uniform.data.sflm_min_travel_angle = m_settings.sflm_min_travel_angle;
+        m_step_settings_uniform.data.sflm_max_velocity = m_settings.sflm_max_velocity;
+        m_step_settings_uniform.data.sflm_damping = m_settings.sflm_damping;
+        m_step_settings_uniform.data.sflm_stop_velocity = m_settings.sflm_stop_velocity;
         m_step_settings_uniform.update_gpu_data(m_queue);
-
+        
         std::vector<WGPUBindGroupEntry> entries {
             m_step_settings_uniform.raw_buffer().create_bind_group_entry(0),
             m_cached_normal_texture->texture_view().create_bind_group_entry(1),
@@ -276,11 +281,32 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
             m_pipeline_manager->avalanche_particle_step_compute_pipeline().run(compute_pass, workgroup_counts);
         }
 
+        if (m_settings.use_SFLM_simulation) {
+            WGPUComputePassDescriptor compute_pass_desc {};
+            compute_pass_desc.label = WGPUStringView { .data = "avalanche particle SFLM step pass", .length = WGPU_STRLEN };
+            webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
+
+            wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
+            m_pipeline_manager->avalanche_particle_SFLM_compute_pipeline().run(compute_pass, workgroup_counts);
+        }
+
+
+        const bool should_compact = (m_particle_step_frame_counter % PARTICLE_COMPACTION_INTERVAL_FRAMES) == 0u;
+        if (should_compact) {
+            WGPUComputePassDescriptor compute_pass_desc {};
+            compute_pass_desc.label = WGPUStringView { .data = "avalanche particle compact pass", .length = WGPU_STRLEN };
+            webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
+
+            wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
+            m_pipeline_manager->avalanche_particle_compact_compute_pipeline().run(compute_pass, glm::uvec3(1, 1, 1));
+        }
+
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
         cmd_buffer_descriptor.label = WGPUStringView { .data = "avalanche particle step command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
+        m_particle_step_frame_counter++;
     }
 
     std::unique_ptr<webgpu::raii::Sampler> ComputeAvalancheAnimationNode::create_normal_sampler(WGPUDevice device)

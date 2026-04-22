@@ -61,6 +61,8 @@ void ShaderModuleManager::create_shader_modules()
     m_avalanche_particle_sph_prepare_compute_module = create_shader_module_for_file("compute/avalanche_particle_sph_prepare.wgsl");
     m_avalanche_particle_sph_density_compute_module = create_shader_module_for_file("compute/avalanche_particle_sph_density.wgsl");
     m_avalanche_particle_sph_force_compute_module = create_shader_module_for_file("compute/avalanche_particle_sph_force.wgsl");
+    m_avalanche_particle_SFLM_compute_module = create_shader_module_for_file("compute/avalanche_particle_SFLM.wgsl");
+    m_avalanche_particle_compact_compute_module = create_shader_module_for_file("compute/avalanche_particle_compact.wgsl");
     m_buffer_to_texture_compute_module = create_shader_module_for_file("compute/buffer_to_texture_compute.wgsl");
     m_avalanche_influence_area_compute_module = create_shader_module_for_file("compute/avalanche_influence_area_compute.wgsl");
     m_d8_compute_module = create_shader_module_for_file("compute/d8_compute.wgsl");
@@ -96,6 +98,8 @@ void ShaderModuleManager::release_shader_modules()
     m_avalanche_particle_sph_prepare_compute_module.release();
     m_avalanche_particle_sph_density_compute_module.release();
     m_avalanche_particle_sph_force_compute_module.release();
+    m_avalanche_particle_SFLM_compute_module.release();
+    m_avalanche_particle_compact_compute_module.release();
     m_buffer_to_texture_compute_module.release();
     m_avalanche_influence_area_compute_module.release();
     m_d8_compute_module.release();
@@ -136,6 +140,10 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_particle_sph_pr
 const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_particle_sph_density_compute() const { return *m_avalanche_particle_sph_density_compute_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_particle_sph_force_compute() const { return *m_avalanche_particle_sph_force_compute_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_particle_SFLM_compute() const { return *m_avalanche_particle_SFLM_compute_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_particle_compact_compute() const { return *m_avalanche_particle_compact_compute_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::buffer_to_texture_compute() const { return *m_buffer_to_texture_compute_module; }
 

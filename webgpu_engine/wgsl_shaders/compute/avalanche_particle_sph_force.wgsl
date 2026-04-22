@@ -14,6 +14,11 @@ struct ParticleStepSettings {
     sph_viscosity: f32,
     sph_epsilon: f32,
     sph_max_speed: f32,
+    sflm_friction_angle: f32,
+    sflm_min_travel_angle: f32,
+    sflm_max_velocity: f32,
+    sflm_damping: f32,
+    sflm_stop_velocity: f32,
     padding_0: f32,
 };
 
@@ -38,6 +43,8 @@ struct DrawIndirectArgs {
 @group(0) @binding(7) var<storage, read_write> densities: array<f32>;
 @group(0) @binding(8) var<storage, read_write> pressures: array<f32>;
 
+const DESPAWN_Z: f32 = -100000.0;
+
 @compute @workgroup_size(256, 1, 1)
 fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     let idx = gid.x;
@@ -48,6 +55,17 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     var pos_i = positions[idx].xyz;
     var vel_i = velocities[idx].xyz;
+    if (pos_i.z <= DESPAWN_Z) {
+        return;
+    }
+
+    let region_max = settings.region_min + settings.region_size;
+    if (pos_i.x < settings.region_min.x || pos_i.x > region_max.x || pos_i.y < settings.region_min.y || pos_i.y > region_max.y) {
+        positions[idx] = vec4f(settings.region_min.x, settings.region_min.y, DESPAWN_Z, 1.0);
+        velocities[idx] = vec4f(0.0, 0.0, 0.0, 0.0);
+        return;
+    }
+
     let rho_i = max(densities[idx], settings.sph_epsilon);
     let p_i = pressures[idx];
 
@@ -91,13 +109,14 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     pos_i = pos_i + vel_i * settings.dt;
 
-    let uv = (pos_i.xy - settings.region_min) / settings.region_size;
-    let uv_y = 1.0 - uv.y;
-    if (uv.x < 0.0 || uv.x > 1.0 || uv_y < 0.0 || uv_y > 1.0) {
-        positions[idx] = vec4f(pos_i, 1.0);
-        velocities[idx] = vec4f(vel_i, 0.0);
+    if (pos_i.x < settings.region_min.x || pos_i.x > region_max.x || pos_i.y < settings.region_min.y || pos_i.y > region_max.y) {
+        positions[idx] = vec4f(settings.region_min.x, settings.region_min.y, DESPAWN_Z, 1.0);
+        velocities[idx] = vec4f(0.0, 0.0, 0.0, 0.0);
         return;
     }
+
+    let uv = (pos_i.xy - settings.region_min) / settings.region_size;
+    let uv_y = 1.0 - uv.y;
 
     let tex_size = textureDimensions(normal_texture);
     let tex_pos = vec2<i32>(clamp(vec2f(uv.x, uv_y) * vec2f(tex_size - 1), vec2f(0.0), vec2f(tex_size - 1)));

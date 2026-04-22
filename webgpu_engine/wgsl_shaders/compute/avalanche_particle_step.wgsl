@@ -27,6 +27,8 @@ struct DrawIndirectArgs {
 @group(0) @binding(5) var<storage, read_write> output_count: OutputCount;
 @group(0) @binding(6) var<storage, read_write> draw_args: DrawIndirectArgs;
 
+const DESPAWN_Z: f32 = -100000.0;
+
 @compute @workgroup_size(256, 1, 1)
 fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     let idx = gid.x;
@@ -41,11 +43,19 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     var pos = positions[idx].xyz;
     var vel = velocities[idx].xyz;
 
-    let uv = (pos.xy - settings.region_min) / settings.region_size;
-    let uv_y = 1.0 - uv.y;
-    if (uv.x < 0.0 || uv.x > 1.0 || uv_y < 0.0 || uv_y > 1.0) {
+    if (pos.z <= DESPAWN_Z) {
         return;
     }
+
+    let region_max = settings.region_min + settings.region_size;
+    if (pos.x < settings.region_min.x || pos.x > region_max.x || pos.y < settings.region_min.y || pos.y > region_max.y) {
+        positions[idx] = vec4f(settings.region_min.x, settings.region_min.y, DESPAWN_Z, 1.0);
+        velocities[idx] = vec4f(0.0, 0.0, 0.0, 0.0);
+        return;
+    }
+
+    let uv = (pos.xy - settings.region_min) / settings.region_size;
+    let uv_y = 1.0 - uv.y;
 
     let tex_size = textureDimensions(normal_texture);
     let tex_pos = vec2<i32>(clamp(vec2f(uv.x, uv_y) * vec2f(tex_size - 1), vec2f(0.0), vec2f(tex_size - 1)));
@@ -60,7 +70,17 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     vel = vel - dot(vel, normal) * normal;
     pos = pos + vel * settings.dt;
 
-    let height_value = textureLoad(height_texture, tex_pos, 0).x;
+    if (pos.x < settings.region_min.x || pos.x > region_max.x || pos.y < settings.region_min.y || pos.y > region_max.y) {
+        positions[idx] = vec4f(settings.region_min.x, settings.region_min.y, DESPAWN_Z, 1.0);
+        velocities[idx] = vec4f(0.0, 0.0, 0.0, 0.0);
+        return;
+    }
+
+    let uv_after = (pos.xy - settings.region_min) / settings.region_size;
+    let uv_y_after = 1.0 - uv_after.y;
+    let tex_pos_after = vec2<i32>(clamp(vec2f(uv_after.x, uv_y_after) * vec2f(tex_size - 1), vec2f(0.0), vec2f(tex_size - 1)));
+
+    let height_value = textureLoad(height_texture, tex_pos_after, 0).x;
     let altitude_correction_factor = 1.0 / cos(y_to_lat(pos.y));
     pos.z = height_value * altitude_correction_factor;
 
