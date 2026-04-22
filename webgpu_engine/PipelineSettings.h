@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "compute/nodes/ComputeAvalancheAnimationNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "radix/geometry.h"
@@ -30,6 +31,8 @@ namespace webgpu_engine {
 // for preserving settings upon switching graph
 // TODO quite ugly solution
 struct ComputePipelineSettings {
+    using AvalancheAnimationDefaults = compute::nodes::ComputeAvalancheAnimationNode::AvalancheAnimationSettings;
+
     radix::geometry::Aabb<3, double> target_region = {}; // select tiles node
     uint32_t zoomlevel = 15;
     uint32_t trajectory_resolution_multiplier = 8;
@@ -45,10 +48,24 @@ struct ComputePipelineSettings {
     uint32_t num_paths_per_release_cell = 1024u;
     uint32_t num_runs = 1u;
 
-    int num_particles_per_cell = 10u; // avalanche animation node
-    int animation_release_point_interval = 1; // avalanche animation node
-    float animation_min_slope_angle = 40.0f; // avalanche animation node
-    float animation_max_slope_angle = 45.0f; // avalanche animation node
+    int num_particles_per_cell = AvalancheAnimationDefaults {}.num_particles_per_cell; // avalanche animation node
+    int animation_release_point_interval = int(AvalancheAnimationDefaults {}.sampling_interval.x); // avalanche animation node
+    float animation_min_slope_angle = AvalancheAnimationDefaults {}.min_slope_angle * (180.0f / 3.14159265358979323846f); // avalanche animation node
+    float animation_max_slope_angle = AvalancheAnimationDefaults {}.max_slope_angle * (180.0f / 3.14159265358979323846f); // avalanche animation node
+    bool use_sph_particle_step = AvalancheAnimationDefaults {}.use_sph_simulation; // avalanche animation node
+    float sph_smoothing_length = AvalancheAnimationDefaults {}.sph_smoothing_length;
+    float sph_particle_mass = AvalancheAnimationDefaults {}.sph_particle_mass;
+    float sph_rest_density = AvalancheAnimationDefaults {}.sph_rest_density;
+    float sph_pressure_stiffness = AvalancheAnimationDefaults {}.sph_pressure_stiffness;
+    float sph_viscosity = AvalancheAnimationDefaults {}.sph_viscosity;
+    float sph_epsilon = AvalancheAnimationDefaults {}.sph_epsilon;
+    float sph_max_speed = AvalancheAnimationDefaults {}.sph_max_speed;
+    bool use_SFLM_simulation = AvalancheAnimationDefaults {}.use_SFLM_simulation;
+    float sflm_friction_angle = AvalancheAnimationDefaults {}.sflm_friction_angle * (180.0f / 3.14159265358979323846f);
+    float sflm_min_travel_angle = AvalancheAnimationDefaults {}.sflm_min_travel_angle * (180.0f / 3.14159265358979323846f);
+    float sflm_max_velocity = AvalancheAnimationDefaults {}.sflm_max_velocity;
+    float sflm_damping = AvalancheAnimationDefaults {}.sflm_damping;
+    float sflm_stop_velocity = AvalancheAnimationDefaults {}.sflm_stop_velocity;
 
     float random_contribution = 25.0f;
     float persistence_contribution = 0.9f;

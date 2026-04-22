@@ -10,7 +10,6 @@ struct AvalancheAnimationSettings {
     max_slope_angle: f32,
     sampling_interval: vec2<u32>,
     num_particles_per_cell: u32,
-    _padding: u32,
 };
 
 struct OutputCount {

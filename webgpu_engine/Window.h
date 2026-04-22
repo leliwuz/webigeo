@@ -129,6 +129,7 @@ private:
     void refresh_compute_pipeline_settings(const radix::geometry::Aabb3d& world_aabb, const nucleus::track::Point& focused_track_point_coords);
     void create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group = true);
     void update_compute_pipeline_settings();
+    void update_avalanche_animation_runtime_settings();
     void update_settings_and_rerun_pipeline(const std::string& entry_node = "");
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_overlay_texture(unsigned int width, unsigned int height);

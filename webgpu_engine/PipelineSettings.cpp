@@ -39,6 +39,14 @@ void ComputePipelineSettings::write_to_json_file(const ComputePipelineSettings& 
     object["animation_min_slope_angle"] = settings.animation_min_slope_angle;
     object["animation_max_slope_angle"] = settings.animation_max_slope_angle;
     object["num_particles_per_cell"] = qint64(settings.num_particles_per_cell);
+    object["use_sph_particle_step"] = settings.use_sph_particle_step;
+    object["sph_smoothing_length"] = settings.sph_smoothing_length;
+    object["sph_particle_mass"] = settings.sph_particle_mass;
+    object["sph_rest_density"] = settings.sph_rest_density;
+    object["sph_pressure_stiffness"] = settings.sph_pressure_stiffness;
+    object["sph_viscosity"] = settings.sph_viscosity;
+    object["sph_epsilon"] = settings.sph_epsilon;
+    object["sph_max_speed"] = settings.sph_max_speed;
 
     object["num_steps"] = qint64(settings.num_steps);
     object["num_paths_per_release_cell"] = qint64(settings.num_paths_per_release_cell);
@@ -96,6 +104,30 @@ ComputePipelineSettings ComputePipelineSettings::read_from_json_file(const std::
     }
     if (object.contains("num_particles_per_cell")) {
         settings.num_particles_per_cell = uint32_t(object["num_particles_per_cell"].toInteger());
+    }
+    if (object.contains("use_sph_particle_step")) {
+        settings.use_sph_particle_step = object["use_sph_particle_step"].toBool();
+    }
+    if (object.contains("sph_smoothing_length")) {
+        settings.sph_smoothing_length = float(object["sph_smoothing_length"].toDouble());
+    }
+    if (object.contains("sph_particle_mass")) {
+        settings.sph_particle_mass = float(object["sph_particle_mass"].toDouble());
+    }
+    if (object.contains("sph_rest_density")) {
+        settings.sph_rest_density = float(object["sph_rest_density"].toDouble());
+    }
+    if (object.contains("sph_pressure_stiffness")) {
+        settings.sph_pressure_stiffness = float(object["sph_pressure_stiffness"].toDouble());
+    }
+    if (object.contains("sph_viscosity")) {
+        settings.sph_viscosity = float(object["sph_viscosity"].toDouble());
+    }
+    if (object.contains("sph_epsilon")) {
+        settings.sph_epsilon = float(object["sph_epsilon"].toDouble());
+    }
+    if (object.contains("sph_max_speed")) {
+        settings.sph_max_speed = float(object["sph_max_speed"].toDouble());
     }
 
     if (object.contains("random_seed")) {
