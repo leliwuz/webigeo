@@ -61,8 +61,8 @@ struct ComputePipelineSettings {
     float sph_epsilon = AvalancheAnimationDefaults {}.sph_epsilon;
     float sph_max_speed = AvalancheAnimationDefaults {}.sph_max_speed;
     bool use_SFLM_simulation = AvalancheAnimationDefaults {}.use_SFLM_simulation;
-    float sflm_friction_angle = AvalancheAnimationDefaults {}.sflm_friction_angle * (180.0f / 3.14159265358979323846f);
-    float sflm_min_travel_angle = AvalancheAnimationDefaults {}.sflm_min_travel_angle * (180.0f / 3.14159265358979323846f);
+    float sflm_friction_angle = AvalancheAnimationDefaults {}.sflm_friction_angle;
+    float sflm_min_travel_angle = AvalancheAnimationDefaults {}.sflm_min_travel_angle;
     float sflm_max_velocity = AvalancheAnimationDefaults {}.sflm_max_velocity;
     float sflm_damping = AvalancheAnimationDefaults {}.sflm_damping;
     float sflm_stop_velocity = AvalancheAnimationDefaults {}.sflm_stop_velocity;

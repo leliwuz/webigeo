@@ -34,9 +34,9 @@ public:
         float sph_epsilon = 1e-4f; // epsilon for SPH simulation
         float sph_max_speed = 40.0f; // maximum speed for SPH simulation
         bool use_SFLM_simulation = true; // whether to use SFLM simulation instead of SPH for particle step
-        float sflm_friction_angle = glm::radians(11.0f); // friction angle for SFLM simulation [degrees]
-        float sflm_min_travel_angle = glm::radians(0.1f); // minimum travel angle for SFLM simulation [degrees]
-        float sflm_max_velocity = 100.0f; // maximum velocity for SFLM simulation
+        float sflm_friction_angle = 11.0f; // phi - friction angle for SFLM simulation [degrees]
+        float sflm_min_travel_angle = 11.0f; // beta - minimum travel angle for SFLM simulation [degrees] 
+        float sflm_max_velocity = 60.0f; // maximum velocity for SFLM simulation
         float sflm_damping = 0.3f; // damping factor for SFLM simulation
         float sflm_stop_velocity = 0.01f; // velocity threshold for stopping particles in SFLM simulation
     };

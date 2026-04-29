@@ -1107,42 +1107,48 @@ void Window::paint_compute_pipeline_gui()
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
-
                 bool should_update_sph_runtime = false;
-                if (ImGui::Checkbox("Use SPH particle simulation", &m_compute_pipeline_settings.use_sph_particle_step)) {
-                    should_update_sph_runtime = true;
+                if (ImGui::TreeNodeEx("SPH options")) {
+                    
+                    if (ImGui::Checkbox("Use SPH particle simulation", &m_compute_pipeline_settings.use_sph_particle_step)) {
+                        should_update_sph_runtime = true;
+                    }
+
+                    should_update_sph_runtime |= ImGui::SliderFloat("SPH smoothing length", &m_compute_pipeline_settings.sph_smoothing_length, 0.5f, 64.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+                    should_update_sph_runtime |= ImGui::SliderFloat("SPH particle mass", &m_compute_pipeline_settings.sph_particle_mass, 0.01f, 20.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+                    should_update_sph_runtime |= ImGui::SliderFloat("SPH rest density", &m_compute_pipeline_settings.sph_rest_density, 0.01f, 20.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+                    should_update_sph_runtime |= ImGui::SliderFloat("SPH pressure stiffness", &m_compute_pipeline_settings.sph_pressure_stiffness, 0.01f, 200.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+                    should_update_sph_runtime |= ImGui::SliderFloat("SPH viscosity", &m_compute_pipeline_settings.sph_viscosity, 0.0f, 2.0f, "%.4f", ImGuiSliderFlags_AlwaysClamp);
+                    should_update_sph_runtime |= ImGui::SliderFloat("SPH epsilon", &m_compute_pipeline_settings.sph_epsilon, 1e-6f, 1e-2f, "%.6f", ImGuiSliderFlags_AlwaysClamp);
+                    should_update_sph_runtime |= ImGui::SliderFloat("SPH max speed", &m_compute_pipeline_settings.sph_max_speed, 0.1f, 200.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                    if (ImGui::Button("Reset SPH defaults")) {
+                        const compute::nodes::ComputeAvalancheAnimationNode::AvalancheAnimationSettings defaults {};
+                        m_compute_pipeline_settings.use_sph_particle_step = defaults.use_sph_simulation;
+                        m_compute_pipeline_settings.sph_smoothing_length = defaults.sph_smoothing_length;
+                        m_compute_pipeline_settings.sph_particle_mass = defaults.sph_particle_mass;
+                        m_compute_pipeline_settings.sph_rest_density = defaults.sph_rest_density;
+                        m_compute_pipeline_settings.sph_pressure_stiffness = defaults.sph_pressure_stiffness;
+                        m_compute_pipeline_settings.sph_viscosity = defaults.sph_viscosity;
+                        m_compute_pipeline_settings.sph_epsilon = defaults.sph_epsilon;
+                        m_compute_pipeline_settings.sph_max_speed = defaults.sph_max_speed;
+                        should_update_sph_runtime = true;
+                    }
+                    ImGui::TreePop();
                 }
-
-                should_update_sph_runtime |= ImGui::SliderFloat("SPH smoothing length", &m_compute_pipeline_settings.sph_smoothing_length, 0.5f, 64.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-                should_update_sph_runtime |= ImGui::SliderFloat("SPH particle mass", &m_compute_pipeline_settings.sph_particle_mass, 0.01f, 20.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-                should_update_sph_runtime |= ImGui::SliderFloat("SPH rest density", &m_compute_pipeline_settings.sph_rest_density, 0.01f, 20.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-                should_update_sph_runtime |= ImGui::SliderFloat("SPH pressure stiffness", &m_compute_pipeline_settings.sph_pressure_stiffness, 0.01f, 200.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-                should_update_sph_runtime |= ImGui::SliderFloat("SPH viscosity", &m_compute_pipeline_settings.sph_viscosity, 0.0f, 2.0f, "%.4f", ImGuiSliderFlags_AlwaysClamp);
-                should_update_sph_runtime |= ImGui::SliderFloat("SPH epsilon", &m_compute_pipeline_settings.sph_epsilon, 1e-6f, 1e-2f, "%.6f", ImGuiSliderFlags_AlwaysClamp);
-                should_update_sph_runtime |= ImGui::SliderFloat("SPH max speed", &m_compute_pipeline_settings.sph_max_speed, 0.1f, 200.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-                should_update_sph_runtime |= ImGui::SliderFloat("SFLM friction angle", &m_compute_pipeline_settings.sflm_friction_angle, 0.0f, 90.0f, "%.1f°", ImGuiSliderFlags_AlwaysClamp);
-                should_update_sph_runtime |= ImGui::SliderFloat("SFLM min travel angle", &m_compute_pipeline_settings.sflm_min_travel_angle, 0.0f, 90.0f, "%.1f°", ImGuiSliderFlags_AlwaysClamp);
-                should_update_sph_runtime |= ImGui::SliderFloat("SFLM max velocity", &m_compute_pipeline_settings.sflm_max_velocity, 0.1f, 200.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-                should_update_sph_runtime |= ImGui::SliderFloat("SFLM damping", &m_compute_pipeline_settings.sflm_damping, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-                should_update_sph_runtime |= ImGui::SliderFloat("SFLM stop velocity", &m_compute_pipeline_settings.sflm_stop_velocity, 0.0f, 10.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
-
-                if (ImGui::Button("Reset SPH defaults")) {
-                    const compute::nodes::ComputeAvalancheAnimationNode::AvalancheAnimationSettings defaults {};
-                    m_compute_pipeline_settings.use_sph_particle_step = defaults.use_sph_simulation;
-                    m_compute_pipeline_settings.sph_smoothing_length = defaults.sph_smoothing_length;
-                    m_compute_pipeline_settings.sph_particle_mass = defaults.sph_particle_mass;
-                    m_compute_pipeline_settings.sph_rest_density = defaults.sph_rest_density;
-                    m_compute_pipeline_settings.sph_pressure_stiffness = defaults.sph_pressure_stiffness;
-                    m_compute_pipeline_settings.sph_viscosity = defaults.sph_viscosity;
-                    m_compute_pipeline_settings.sph_epsilon = defaults.sph_epsilon;
-                    m_compute_pipeline_settings.sph_max_speed = defaults.sph_max_speed;
-                    should_update_sph_runtime = true;
+                if  (ImGui::TreeNodeEx("SFLM options")) {
+                    should_update_sph_runtime |= ImGui::SliderFloat("SFLM friction angle", &m_compute_pipeline_settings.sflm_friction_angle, 0.0f, 90.0f, "%.1f°", ImGuiSliderFlags_AlwaysClamp);
+                    should_update_sph_runtime |= ImGui::SliderFloat("SFLM min travel angle", &m_compute_pipeline_settings.sflm_min_travel_angle, 0.0f, 90.0f, "%.1f°", ImGuiSliderFlags_AlwaysClamp);
+                    should_update_sph_runtime |= ImGui::SliderFloat("SFLM max velocity", &m_compute_pipeline_settings.sflm_max_velocity, 0.1f, 200.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                    should_update_sph_runtime |= ImGui::SliderFloat("SFLM damping", &m_compute_pipeline_settings.sflm_damping, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+                    should_update_sph_runtime |= ImGui::SliderFloat("SFLM stop velocity", &m_compute_pipeline_settings.sflm_stop_velocity, 0.0f, 10.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+                    ImGui::TreePop();
                 }
+                
 
-                if (ImGui::Button("Reset SFLM defaults")) {
+                if (ImGui::Button("Reset to defaults")) {
                     const compute::nodes::ComputeAvalancheAnimationNode::AvalancheAnimationSettings defaults {};
-                    m_compute_pipeline_settings.sflm_friction_angle = glm::degrees(defaults.sflm_friction_angle);
-                    m_compute_pipeline_settings.sflm_min_travel_angle = glm::degrees(defaults.sflm_min_travel_angle);
+                    m_compute_pipeline_settings.sflm_friction_angle = defaults.sflm_friction_angle;
+                    m_compute_pipeline_settings.sflm_min_travel_angle = defaults.sflm_min_travel_angle;
                     m_compute_pipeline_settings.sflm_max_velocity = defaults.sflm_max_velocity;
                     m_compute_pipeline_settings.sflm_damping = defaults.sflm_damping;
                     m_compute_pipeline_settings.sflm_stop_velocity = defaults.sflm_stop_velocity;
