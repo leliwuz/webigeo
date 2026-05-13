@@ -35,6 +35,8 @@ public:
     const webgpu::raii::GenericRenderPipeline& render_atmosphere_pipeline() const;
     const webgpu::raii::RenderPipeline& render_lines_pipeline() const;    
     const webgpu::raii::RenderPipeline& render_particles_pipeline() const;
+    const webgpu::raii::RenderPipeline& render_particles_alpha_pipeline() const;
+    const webgpu::raii::RenderPipeline& render_particles_occupancy_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& avalanche_animation_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& avalanche_particle_step_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& avalanche_particle_sph_prepare_compute_pipeline() const;
@@ -93,6 +95,8 @@ private:
     void create_render_atmosphere_pipeline();
     void create_render_lines_pipeline();
     void create_render_particles_pipeline();
+    void create_render_particles_alpha_pipeline();
+    void create_render_particles_occupancy_pipeline();
     void create_compose_pipeline();
     void create_shadow_pipeline();
     void create_normals_compute_pipeline();
@@ -149,6 +153,8 @@ private:
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_render_atmosphere_pipeline;
     std::unique_ptr<webgpu::raii::RenderPipeline> m_render_lines_pipeline;
     std::unique_ptr<webgpu::raii::RenderPipeline> m_render_particles_pipeline;
+    std::unique_ptr<webgpu::raii::RenderPipeline> m_render_particles_alpha_pipeline;
+    std::unique_ptr<webgpu::raii::RenderPipeline> m_render_particles_occupancy_pipeline;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_compose_pipeline;
 
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_normals_compute_pipeline;

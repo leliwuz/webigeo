@@ -15,6 +15,12 @@ using Coordinates = glm::dvec3;
 
 class ParticleRenderer{
 public: 
+    enum class ParticleRenderMode {
+        Billboard = 0,
+        AlphaBlend = 1,
+        Occupancy = 2,
+    };
+
     struct ParticleConfig {
         glm::vec4 color = {1.f, 0.f, 0.f, 1.f};   
         float _pad4;        
@@ -64,6 +70,9 @@ public:
         const webgpu::raii::BindGroup& depth_texture,
         const webgpu::raii::TextureView& color_texture);
 
+    void set_render_mode(ParticleRenderMode mode);
+    ParticleRenderMode render_mode() const { return m_render_mode; }
+
     void clear_gpu_driven();
 
     // Clear all particles
@@ -106,12 +115,22 @@ private:
     // GPU-driven particle rendering state
     const webgpu::raii::RawBuffer<glm::vec4>* m_gpu_positions_buffer = nullptr;
     const webgpu::raii::RawBuffer<uint32_t>* m_gpu_indirect_args_buffer = nullptr;
+    const webgpu::raii::RawBuffer<float>* m_gpu_density_buffer = nullptr;
     std::unique_ptr<webgpu_engine::Buffer<ParticleRenderer::ParticleConfig>> m_gpu_particle_config_buffer;
     std::unique_ptr<webgpu::raii::BindGroup> m_gpu_bind_group;
     glm::vec4 m_gpu_particle_color = { 1.f, 1.0, 1.0, 1.f };
+
+    std::unique_ptr<webgpu::raii::RawBuffer<float>> m_cpu_density_buffer;
+    float m_density_min_size = 0.2f;
+    float m_density_max_size = 2.0f;
+    float m_density_low = 0.0f;
+    float m_density_high = 1.0f;
+
+    ParticleRenderMode m_render_mode = ParticleRenderMode::Billboard;
     
     // Helper method to generate sphere mesh
     void generate_sphere_mesh(uint32_t longitude_segments = 32, uint32_t latitude_segments = 16, float radius = 1.0f);
+    const webgpu::raii::RenderPipeline& active_render_pipeline() const;
 };
 
 }

@@ -39,6 +39,10 @@ const webgpu::raii::RenderPipeline& PipelineManager::render_lines_pipeline() con
 
 const webgpu::raii::RenderPipeline& PipelineManager::render_particles_pipeline() const { return *m_render_particles_pipeline; }
 
+const webgpu::raii::RenderPipeline& PipelineManager::render_particles_alpha_pipeline() const { return *m_render_particles_alpha_pipeline; }
+
+const webgpu::raii::RenderPipeline& PipelineManager::render_particles_occupancy_pipeline() const { return *m_render_particles_occupancy_pipeline; }
+
 const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_animation_compute_pipeline() const { return *m_avalanche_animation_compute_pipeline; }
 const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_particle_step_compute_pipeline() const { return *m_avalanche_particle_step_compute_pipeline; }
 const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_particle_sph_prepare_compute_pipeline() const { return *m_avalanche_particle_sph_prepare_compute_pipeline; }
@@ -148,6 +152,8 @@ void PipelineManager::create_pipelines()
     create_render_atmosphere_pipeline();
     create_render_lines_pipeline();
     create_render_particles_pipeline();
+    create_render_particles_alpha_pipeline();
+    create_render_particles_occupancy_pipeline();
     create_compose_pipeline();
 
     create_normals_compute_pipeline();
@@ -207,6 +213,8 @@ void PipelineManager::release_pipelines()
     m_render_atmosphere_pipeline.release();
     m_render_lines_pipeline.release();
     m_render_particles_pipeline.release();
+    m_render_particles_alpha_pipeline.release();
+    m_render_particles_occupancy_pipeline.release();
     m_compose_pipeline.release();
 
     m_normals_compute_pipeline.release();
@@ -397,6 +405,108 @@ void PipelineManager::create_render_particles_pipeline()
     pipeline_desc.layout = layout.handle();
 
     m_render_particles_pipeline = std::make_unique<webgpu::raii::RenderPipeline>(m_device, pipeline_desc);
+}
+
+void PipelineManager::create_render_particles_alpha_pipeline()
+{
+    WGPUBlendState blend_state {};
+    blend_state.color.operation = WGPUBlendOperation_Add;
+    blend_state.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+    blend_state.color.dstFactor = WGPUBlendFactor_One;
+    blend_state.alpha.operation = WGPUBlendOperation_Add;
+    blend_state.alpha.srcFactor = WGPUBlendFactor_One;
+    blend_state.alpha.dstFactor = WGPUBlendFactor_One;
+
+    WGPUColorTargetState color_target_state {};
+    color_target_state.blend = &blend_state;
+    color_target_state.writeMask = WGPUColorWriteMask_All;
+    color_target_state.format = WGPUTextureFormat_BGRA8Unorm;
+
+    WGPUFragmentState fragment_state {};
+    fragment_state.module = m_shader_manager->render_particles_alpha().handle();
+    fragment_state.entryPoint = WGPUStringView { .data = "fragmentMain", .length = WGPU_STRLEN };
+    fragment_state.constantCount = 0;
+    fragment_state.constants = nullptr;
+    fragment_state.targetCount = 1;
+    fragment_state.targets = &color_target_state;
+
+    std::vector<WGPUBindGroupLayout> bind_group_layout_handles {
+        m_shared_config_bind_group_layout->handle(),
+        m_camera_bind_group_layout->handle(),
+        m_depth_texture_bind_group_layout->handle(),
+        m_particles_bind_group_layout->handle()
+    };
+    webgpu::raii::PipelineLayout layout(m_device, bind_group_layout_handles);
+
+    WGPURenderPipelineDescriptor pipeline_desc {};
+    pipeline_desc.label = WGPUStringView { .data = "particle render pipeline (alpha)", .length = WGPU_STRLEN };
+    pipeline_desc.vertex.module = m_shader_manager->render_particles_alpha().handle();
+    pipeline_desc.vertex.entryPoint = WGPUStringView { .data = "vertexMain", .length = WGPU_STRLEN };
+    pipeline_desc.vertex.bufferCount = 0;
+    pipeline_desc.vertex.buffers = nullptr;
+    pipeline_desc.vertex.constantCount = 0;
+    pipeline_desc.vertex.constants = nullptr;
+
+    pipeline_desc.primitive.topology = WGPUPrimitiveTopology::WGPUPrimitiveTopology_TriangleList;
+    pipeline_desc.primitive.stripIndexFormat = WGPUIndexFormat::WGPUIndexFormat_Undefined;
+    pipeline_desc.primitive.frontFace = WGPUFrontFace::WGPUFrontFace_CCW;
+    pipeline_desc.primitive.cullMode = WGPUCullMode::WGPUCullMode_Back;
+
+    pipeline_desc.fragment = &fragment_state;
+    pipeline_desc.depthStencil = nullptr;
+    pipeline_desc.multisample.count = 1;
+    pipeline_desc.multisample.mask = ~0u;
+    pipeline_desc.multisample.alphaToCoverageEnabled = false;
+    pipeline_desc.layout = layout.handle();
+
+    m_render_particles_alpha_pipeline = std::make_unique<webgpu::raii::RenderPipeline>(m_device, pipeline_desc);
+}
+
+void PipelineManager::create_render_particles_occupancy_pipeline()
+{
+    WGPUColorTargetState color_target_state {};
+    color_target_state.blend = nullptr;
+    color_target_state.writeMask = WGPUColorWriteMask_All;
+    color_target_state.format = WGPUTextureFormat_BGRA8Unorm;
+
+    WGPUFragmentState fragment_state {};
+    fragment_state.module = m_shader_manager->render_particles_occupancy().handle();
+    fragment_state.entryPoint = WGPUStringView { .data = "fragmentMain", .length = WGPU_STRLEN };
+    fragment_state.constantCount = 0;
+    fragment_state.constants = nullptr;
+    fragment_state.targetCount = 1;
+    fragment_state.targets = &color_target_state;
+
+    std::vector<WGPUBindGroupLayout> bind_group_layout_handles {
+        m_shared_config_bind_group_layout->handle(),
+        m_camera_bind_group_layout->handle(),
+        m_depth_texture_bind_group_layout->handle(),
+        m_particles_bind_group_layout->handle()
+    };
+    webgpu::raii::PipelineLayout layout(m_device, bind_group_layout_handles);
+
+    WGPURenderPipelineDescriptor pipeline_desc {};
+    pipeline_desc.label = WGPUStringView { .data = "particle render pipeline (occupancy)", .length = WGPU_STRLEN };
+    pipeline_desc.vertex.module = m_shader_manager->render_particles_occupancy().handle();
+    pipeline_desc.vertex.entryPoint = WGPUStringView { .data = "vertexMain", .length = WGPU_STRLEN };
+    pipeline_desc.vertex.bufferCount = 0;
+    pipeline_desc.vertex.buffers = nullptr;
+    pipeline_desc.vertex.constantCount = 0;
+    pipeline_desc.vertex.constants = nullptr;
+
+    pipeline_desc.primitive.topology = WGPUPrimitiveTopology::WGPUPrimitiveTopology_TriangleList;
+    pipeline_desc.primitive.stripIndexFormat = WGPUIndexFormat::WGPUIndexFormat_Undefined;
+    pipeline_desc.primitive.frontFace = WGPUFrontFace::WGPUFrontFace_CCW;
+    pipeline_desc.primitive.cullMode = WGPUCullMode::WGPUCullMode_Back;
+
+    pipeline_desc.fragment = &fragment_state;
+    pipeline_desc.depthStencil = nullptr;
+    pipeline_desc.multisample.count = 1;
+    pipeline_desc.multisample.mask = ~0u;
+    pipeline_desc.multisample.alphaToCoverageEnabled = false;
+    pipeline_desc.layout = layout.handle();
+
+    m_render_particles_occupancy_pipeline = std::make_unique<webgpu::raii::RenderPipeline>(m_device, pipeline_desc);
 }
 
 void PipelineManager::create_compose_pipeline()

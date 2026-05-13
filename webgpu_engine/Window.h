@@ -188,6 +188,7 @@ private:
     std::unique_ptr<TrackRenderer> m_track_renderer;
 
     std::unique_ptr<ParticleRenderer> m_particle_renderer;
+    ParticleRenderer::ParticleRenderMode m_particle_render_mode = ParticleRenderer::ParticleRenderMode::AlphaBlend;
 
     std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
     ComputePipelineType m_active_compute_pipeline_type;

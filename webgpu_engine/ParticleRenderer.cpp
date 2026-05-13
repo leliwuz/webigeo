@@ -132,6 +132,24 @@ void ParticleRenderer::update_particles(float delta_time)
     }
 }
 
+void ParticleRenderer::set_render_mode(ParticleRenderMode mode)
+{
+    m_render_mode = mode;
+}
+
+const webgpu::raii::RenderPipeline& ParticleRenderer::active_render_pipeline() const
+{
+    switch (m_render_mode) {
+        case ParticleRenderMode::AlphaBlend:
+            return m_pipeline_manager->render_particles_alpha_pipeline();
+        case ParticleRenderMode::Occupancy:
+            return m_pipeline_manager->render_particles_occupancy_pipeline();
+        case ParticleRenderMode::Billboard:
+        default:
+            return m_pipeline_manager->render_particles_pipeline();
+    }
+}
+
 void ParticleRenderer::render(WGPUCommandEncoder command_encoder, 
                              const webgpu::raii::BindGroup& shared_config, 
                              const webgpu::raii::BindGroup& camera_config,
@@ -162,7 +180,7 @@ void ParticleRenderer::render(WGPUCommandEncoder command_encoder,
     auto render_pass = webgpu::raii::RenderPassEncoder(command_encoder, render_pass_descriptor);
     
     // Set pipeline
-    wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_pipeline_manager->render_particles_pipeline().handle());
+    wgpuRenderPassEncoderSetPipeline(render_pass.handle(), active_render_pipeline().handle());
     
     // Bind common groups (group 0: shared, group 1: camera, group 2: depth)
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, shared_config.handle(), 0, nullptr);
@@ -243,7 +261,7 @@ void ParticleRenderer::render_gpu_driven(WGPUCommandEncoder command_encoder,
 
     auto render_pass = webgpu::raii::RenderPassEncoder(command_encoder, render_pass_descriptor);
 
-    wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_pipeline_manager->render_particles_pipeline().handle());
+    wgpuRenderPassEncoderSetPipeline(render_pass.handle(), active_render_pipeline().handle());
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, shared_config.handle(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 1, camera_config.handle(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 2, depth_texture.handle(), 0, nullptr);

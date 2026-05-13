@@ -92,6 +92,7 @@ void Window::initialise_gpu()
     m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_context->pipeline_manager());
 
     m_particle_renderer = std::make_unique<ParticleRenderer>(m_device, *m_context->pipeline_manager());
+    m_particle_renderer->set_render_mode(m_particle_render_mode);
 
     m_image_overlay_settings_uniform_buffer = std::make_unique<Buffer<ImageOverlaySettings>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_image_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(0);
@@ -1107,6 +1108,17 @@ void Window::paint_compute_pipeline_gui()
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
+                if (ImGui::CollapsingHeader("Particles", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    int render_mode = static_cast<int>(m_particle_render_mode);
+                    if (ImGui::Combo("Render mode", &render_mode, "Billboard\0Alpha Blend\0Occupancy\0\0")) {
+                        m_particle_render_mode = static_cast<ParticleRenderer::ParticleRenderMode>(render_mode);
+                        if (m_particle_renderer) {
+                            m_particle_renderer->set_render_mode(m_particle_render_mode);
+                        }
+                        m_needs_redraw = true;
+                    }
+                }
+
                 bool should_update_sph_runtime = false;
                 if (ImGui::TreeNodeEx("SPH options")) {
                     

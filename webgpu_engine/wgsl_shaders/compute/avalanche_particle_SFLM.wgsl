@@ -95,10 +95,12 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     let downhill2 = vec2f(-normal.x, -normal.y);
     let dir2 = safe_dir2(vel.xy, downhill2, settings.sph_epsilon);
 
-    let dX = max(length(vel.xy) * settings.dt, settings.sph_epsilon);
-    let region_safe = max(settings.region_size, vec2f(settings.sph_epsilon));
-    let uv_step = dir2 * (dX / region_safe);
+    let tex_size_f = vec2f(tex_size);
+    let texel_uv = 1.0 / max(tex_size_f - vec2f(1.0), vec2f(1.0));
+    let uv_step = dir2 * texel_uv;
     let uv_next = clamp(uv + uv_step, vec2f(0.0), vec2f(1.0));
+    let region_safe = max(settings.region_size, vec2f(settings.sph_epsilon));
+    let dX = max(length(uv_step * region_safe), settings.sph_epsilon);
     let uv_next_y = 1.0 - uv_next.y;
     let tex_pos_next = vec2<i32>(clamp(vec2f(uv_next.x, uv_next_y) * vec2f(tex_size - 1), vec2f(0.0), vec2f(tex_size - 1)));
 

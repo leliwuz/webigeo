@@ -21,7 +21,7 @@ public:
         WGPUTextureFormat texture_format = WGPUTextureFormat_RGBA8Unorm;
         WGPUTextureUsage texture_usage
             = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc);
-        float min_slope_angle = glm::radians(35.0f); // min slope angle [degrees]
+        float min_slope_angle = glm::radians(40.0f); // min slope angle [degrees]
         float max_slope_angle = glm::radians(45.0f); // max slope angle [degrees]
         glm::uvec2 sampling_interval = glm::uvec2(1, 1); // sampling interval in x and y direction [every sampling_interval texels]
         int num_particles_per_cell = 10; // number of particles to release per release cell
@@ -32,9 +32,9 @@ public:
         float sph_pressure_stiffness = 15.0f; // pressure stiffness for SPH simulation
         float sph_viscosity = 0.08f; // viscosity for SPH simulation
         float sph_epsilon = 1e-4f; // epsilon for SPH simulation
-        float sph_max_speed = 40.0f; // maximum speed for SPH simulation
+        float sph_max_speed = 60.0f; // maximum speed for SPH simulation
         bool use_SFLM_simulation = true; // whether to use SFLM simulation instead of SPH for particle step
-        float sflm_friction_angle = 11.0f; // phi - friction angle for SFLM simulation [degrees]
+        float sflm_friction_angle = 15.0f; // phi - friction angle for SFLM simulation [degrees]
         float sflm_min_travel_angle = 11.0f; // beta - minimum travel angle for SFLM simulation [degrees] 
         float sflm_max_velocity = 60.0f; // maximum velocity for SFLM simulation
         float sflm_damping = 0.3f; // damping factor for SFLM simulation
