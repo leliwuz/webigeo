@@ -32,12 +32,11 @@ public:
         float sph_pressure_stiffness = 15.0f; // pressure stiffness for SPH simulation
         float sph_viscosity = 0.08f; // viscosity for SPH simulation
         float sph_epsilon = 1e-4f; // epsilon for SPH simulation
-        float sph_max_speed = 60.0f; // maximum speed for SPH simulation
         bool use_SFLM_simulation = true; // whether to use SFLM simulation instead of SPH for particle step
-        float sflm_friction_angle = 15.0f; // phi - friction angle for SFLM simulation [degrees]
-        float sflm_min_travel_angle = 11.0f; // beta - minimum travel angle for SFLM simulation [degrees] 
-        float sflm_max_velocity = 60.0f; // maximum velocity for SFLM simulation
-        float sflm_damping = 0.3f; // damping factor for SFLM simulation
+        float sflm_friction_angle = 9.0f; // phi - friction angle for SFLM simulation [degrees]
+        float sflm_min_travel_angle = 6.0f; // beta - minimum travel angle for SFLM simulation [degrees] 
+        float sflm_max_velocity = 120.0f; // maximum velocity for SFLM simulation
+        float sflm_damping = 0.5f; // damping factor for SFLM simulation
         float sflm_stop_velocity = 0.01f; // velocity threshold for stopping particles in SFLM simulation
     };
 private:
@@ -64,16 +63,12 @@ private:
         float sph_pressure_stiffness;
         float sph_viscosity;
         float sph_epsilon;
-        float sph_max_speed;
         float sflm_friction_angle;
         float sflm_min_travel_angle;
         float sflm_max_velocity;
         float sflm_damping;
         float sflm_stop_velocity;
         float padding_0;
-        float padding_1;
-        float padding_2;
-        float padding_3;
     };
 
     static constexpr size_t PARTICLE_STEP_UNIFORM_ALIGNMENT = 16u;

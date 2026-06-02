@@ -1132,7 +1132,6 @@ void Window::paint_compute_pipeline_gui()
                     should_update_sph_runtime |= ImGui::SliderFloat("SPH pressure stiffness", &m_compute_pipeline_settings.sph_pressure_stiffness, 0.01f, 200.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
                     should_update_sph_runtime |= ImGui::SliderFloat("SPH viscosity", &m_compute_pipeline_settings.sph_viscosity, 0.0f, 2.0f, "%.4f", ImGuiSliderFlags_AlwaysClamp);
                     should_update_sph_runtime |= ImGui::SliderFloat("SPH epsilon", &m_compute_pipeline_settings.sph_epsilon, 1e-6f, 1e-2f, "%.6f", ImGuiSliderFlags_AlwaysClamp);
-                    should_update_sph_runtime |= ImGui::SliderFloat("SPH max speed", &m_compute_pipeline_settings.sph_max_speed, 0.1f, 200.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
                     if (ImGui::Button("Reset SPH defaults")) {
                         const compute::nodes::ComputeAvalancheAnimationNode::AvalancheAnimationSettings defaults {};
                         m_compute_pipeline_settings.use_sph_particle_step = defaults.use_sph_simulation;
@@ -1142,7 +1141,6 @@ void Window::paint_compute_pipeline_gui()
                         m_compute_pipeline_settings.sph_pressure_stiffness = defaults.sph_pressure_stiffness;
                         m_compute_pipeline_settings.sph_viscosity = defaults.sph_viscosity;
                         m_compute_pipeline_settings.sph_epsilon = defaults.sph_epsilon;
-                        m_compute_pipeline_settings.sph_max_speed = defaults.sph_max_speed;
                         should_update_sph_runtime = true;
                     }
                     ImGui::TreePop();
@@ -1559,7 +1557,6 @@ void Window::update_compute_pipeline_settings()
         animation_settings.sph_pressure_stiffness = m_compute_pipeline_settings.sph_pressure_stiffness;
         animation_settings.sph_viscosity = m_compute_pipeline_settings.sph_viscosity;
         animation_settings.sph_epsilon = m_compute_pipeline_settings.sph_epsilon;
-        animation_settings.sph_max_speed = m_compute_pipeline_settings.sph_max_speed;
         animation_settings.use_SFLM_simulation = m_compute_pipeline_settings.use_SFLM_simulation;
         animation_settings.sflm_friction_angle = glm::radians(m_compute_pipeline_settings.sflm_friction_angle);
         animation_settings.sflm_min_travel_angle = glm::radians(m_compute_pipeline_settings.sflm_min_travel_angle);
@@ -1586,7 +1583,6 @@ void Window::update_avalanche_animation_runtime_settings()
     settings.sph_pressure_stiffness = m_compute_pipeline_settings.sph_pressure_stiffness;
     settings.sph_viscosity = m_compute_pipeline_settings.sph_viscosity;
     settings.sph_epsilon = m_compute_pipeline_settings.sph_epsilon;
-    settings.sph_max_speed = m_compute_pipeline_settings.sph_max_speed;
     settings.use_SFLM_simulation = m_compute_pipeline_settings.use_SFLM_simulation;
     settings.sflm_friction_angle = glm::radians(m_compute_pipeline_settings.sflm_friction_angle);
     settings.sflm_min_travel_angle = glm::radians(m_compute_pipeline_settings.sflm_min_travel_angle);

@@ -59,7 +59,6 @@ struct ComputePipelineSettings {
     float sph_pressure_stiffness = AvalancheAnimationDefaults {}.sph_pressure_stiffness;
     float sph_viscosity = AvalancheAnimationDefaults {}.sph_viscosity;
     float sph_epsilon = AvalancheAnimationDefaults {}.sph_epsilon;
-    float sph_max_speed = AvalancheAnimationDefaults {}.sph_max_speed;
     bool use_SFLM_simulation = AvalancheAnimationDefaults {}.use_SFLM_simulation;
     float sflm_friction_angle = AvalancheAnimationDefaults {}.sflm_friction_angle;
     float sflm_min_travel_angle = AvalancheAnimationDefaults {}.sflm_min_travel_angle;

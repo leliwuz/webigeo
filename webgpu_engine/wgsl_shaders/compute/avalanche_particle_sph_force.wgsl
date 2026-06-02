@@ -13,7 +13,6 @@ struct ParticleStepSettings {
     sph_pressure_stiffness: f32,
     sph_viscosity: f32,
     sph_epsilon: f32,
-    sph_max_speed: f32,
     sflm_friction_angle: f32,
     sflm_min_travel_angle: f32,
     sflm_max_velocity: f32,
@@ -102,10 +101,6 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     vel_i = vel_i + accel * settings.dt;
 
     let speed = length(vel_i);
-    if (speed > settings.sph_max_speed) {
-        let scale = settings.sph_max_speed / max(speed, settings.sph_epsilon);
-        vel_i = vel_i * scale;
-    }
 
     pos_i = pos_i + vel_i * settings.dt;
 

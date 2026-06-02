@@ -10,7 +10,6 @@ struct ParticleStepSettings {
     sph_pressure_stiffness: f32,
     sph_viscosity: f32,
     sph_epsilon: f32,
-    sph_max_speed: f32,
     padding_0: f32,
 };
 
@@ -46,13 +45,6 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     if (idx >= count) {
         return;
-    }
-
-    let vel = velocities[idx].xyz;
-    let speed = length(vel);
-    if (speed > settings.sph_max_speed) {
-        let scale = settings.sph_max_speed / max(speed, settings.sph_epsilon);
-        velocities[idx] = vec4f(vel * scale, 0.0);
     }
 
     densities[idx] = 0.0;

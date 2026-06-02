@@ -215,7 +215,6 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
         m_step_settings_uniform.data.sph_pressure_stiffness = m_settings.sph_pressure_stiffness;
         m_step_settings_uniform.data.sph_viscosity = m_settings.sph_viscosity;
         m_step_settings_uniform.data.sph_epsilon = m_settings.sph_epsilon;
-        m_step_settings_uniform.data.sph_max_speed = m_settings.sph_max_speed;
         m_step_settings_uniform.data.sflm_friction_angle = m_settings.sflm_friction_angle;
         m_step_settings_uniform.data.sflm_min_travel_angle = m_settings.sflm_min_travel_angle;
         m_step_settings_uniform.data.sflm_max_velocity = m_settings.sflm_max_velocity;

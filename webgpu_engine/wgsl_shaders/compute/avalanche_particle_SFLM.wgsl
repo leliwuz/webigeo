@@ -13,7 +13,6 @@ struct ParticleStepSettings {
     sph_pressure_stiffness: f32,
     sph_viscosity: f32,
     sph_epsilon: f32,
-    sph_max_speed: f32,
     sflm_friction_angle: f32,
     sflm_min_travel_angle: f32,
     sflm_max_velocity: f32,
@@ -113,12 +112,11 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     let travel_angle = atan2(max(dH, 0.0), max(dX, settings.sph_epsilon));
     if (travel_angle < settings.sflm_min_travel_angle) {
         vel = vel * settings.sflm_damping;
-    }
-
+    } 
     if (energy_term <= 0.0) {
         vel = vel * settings.sflm_damping;
         if (length(vel) < settings.sflm_stop_velocity) {
-            vel = vec3f(0.0);
+            //vel = vec3f(0.0);
         }
         velocities[idx] = vec4f(vel, 0.0);
         return;
@@ -128,7 +126,7 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     let current_speed = max(length(vel), settings.sph_epsilon);
     vel = vel * (target_speed / current_speed);
     if (target_speed < settings.sflm_stop_velocity) {
-        vel = vec3f(0.0);
+        //vel = vec3f(0.0);
     }
 
     velocities[idx] = vec4f(vel, 0.0);

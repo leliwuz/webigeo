@@ -46,7 +46,6 @@ void ComputePipelineSettings::write_to_json_file(const ComputePipelineSettings& 
     object["sph_pressure_stiffness"] = settings.sph_pressure_stiffness;
     object["sph_viscosity"] = settings.sph_viscosity;
     object["sph_epsilon"] = settings.sph_epsilon;
-    object["sph_max_speed"] = settings.sph_max_speed;
 
     object["num_steps"] = qint64(settings.num_steps);
     object["num_paths_per_release_cell"] = qint64(settings.num_paths_per_release_cell);
@@ -125,9 +124,6 @@ ComputePipelineSettings ComputePipelineSettings::read_from_json_file(const std::
     }
     if (object.contains("sph_epsilon")) {
         settings.sph_epsilon = float(object["sph_epsilon"].toDouble());
-    }
-    if (object.contains("sph_max_speed")) {
-        settings.sph_max_speed = float(object["sph_max_speed"].toDouble());
     }
 
     if (object.contains("random_seed")) {

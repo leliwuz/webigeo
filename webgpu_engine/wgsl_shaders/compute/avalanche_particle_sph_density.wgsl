@@ -12,7 +12,6 @@ struct ParticleStepSettings {
     sph_pressure_stiffness: f32,
     sph_viscosity: f32,
     sph_epsilon: f32,
-    sph_max_speed: f32,
     padding_0: f32,
 };
 
