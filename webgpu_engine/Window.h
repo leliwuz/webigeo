@@ -237,6 +237,8 @@ private:
     };
     size_t m_current_compute_color_layer_index = 0;
     size_t m_current_compute_alpha_layer_index = 1;
+
+    std::vector<glm::dvec2> m_current_polygon_vertices;
     // === UNTIL HERE ===
 };
 

@@ -38,6 +38,8 @@ public:
         float sflm_max_velocity = 120.0f; // maximum velocity for SFLM simulation
         float sflm_damping = 0.5f; // damping factor for SFLM simulation
         float sflm_stop_velocity = 0.01f; // velocity threshold for stopping particles in SFLM simulation
+        std::vector<glm::dvec2> polygon_vertices;
+        bool spawn_only_in_tracking_area_mask = true; // whether to only spawn particles in areas defined by a tracking area mask (e.g. to restrict spawning to avalanche release zones)
     };
 private:
     struct AvalancheAnimationSettingsUniform {
@@ -48,7 +50,7 @@ private:
         float max_slope_angle;
         glm::uvec2 sampling_interval;
         uint32_t num_particles_per_cell;
-        uint32_t padding_0;
+        uint32_t spawn_only_in_tracking_area_mask;
     };
 
     struct AvalancheParticleStepSettingsUniform {

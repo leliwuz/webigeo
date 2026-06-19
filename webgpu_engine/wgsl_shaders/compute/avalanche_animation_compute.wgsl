@@ -10,6 +10,7 @@ struct AvalancheAnimationSettings {
     max_slope_angle: f32,
     sampling_interval: vec2<u32>,
     num_particles_per_cell: u32,
+    spawn_only_in_tracking_area_mask: u32,
 };
 
 struct OutputCount {
@@ -50,6 +51,17 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
         return;
     }
     let release_value = textureLoad(release_texture, vec2<i32>(gid.xy), 0);
+    var should_spawn = false;
+
+    if (settings.spawn_only_in_tracking_area_mask == 1) {
+        should_spawn = (release_value.r > 0.5); 
+    } else {
+        should_spawn = (release_value.r > 0.0); 
+    }
+
+    if (!should_spawn) {
+        return; 
+    }
     if (release_value.a <= 0.5) {
         return;
     }

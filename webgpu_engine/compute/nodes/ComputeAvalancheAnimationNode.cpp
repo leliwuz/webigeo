@@ -1,6 +1,10 @@
 #include "ComputeAvalancheAnimationNode.h"
 
 #include <QDebug>
+#include <QImage>
+#include <QPainter>
+#include <QPolygonF>
+#include <vector>
 #include <nucleus/srs.h>
 
 namespace webgpu_engine::compute::nodes {
@@ -15,7 +19,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
     ComputeAvalancheAnimationNode::ComputeAvalancheAnimationNode(const PipelineManager& pipeline_manager, WGPUDevice device, const AvalancheAnimationSettings& settings)
         : Node(
               {
-                    InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()),
+                  InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()),
                   InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
                   InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
                   InputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>()),
@@ -42,13 +46,16 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
         m_settings_uniform.data.max_slope_angle = m_settings.max_slope_angle;
         m_settings_uniform.data.sampling_interval = m_settings.sampling_interval;
         m_settings_uniform.data.num_particles_per_cell = m_settings.num_particles_per_cell;
+        m_settings_uniform.data.spawn_only_in_tracking_area_mask = m_settings.spawn_only_in_tracking_area_mask ? 1u : 0u;
         m_settings_uniform.update_gpu_data(m_queue);
     }
 
     void ComputeAvalancheAnimationNode::set_settings(const AvalancheAnimationSettings& settings) { m_settings = settings; }
 
     const ComputeAvalancheAnimationNode::AvalancheAnimationSettings& ComputeAvalancheAnimationNode::get_settings() const { return m_settings; }
-
+    
+    std::unique_ptr<webgpu::raii::TextureWithSampler> create_polygon_release_texture(WGPUDevice device, WGPUQueue queue, glm::uvec2 dimensions, const radix::geometry::Aabb<2, double>& region_aabb, const std::vector<glm::dvec2>& polygon_vertices); 
+    
     void ComputeAvalancheAnimationNode::run_impl()
     {
         qDebug() << "running ComputeAvalancheAnimationNode ...";
@@ -75,7 +82,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
     
         const auto input_width = normal_texture.texture().width();
         const auto input_height = normal_texture.texture().height();
-    
+
         // assert input textures have same size, otherwise fail run
         if (input_width != height_texture.texture().width() || input_height != height_texture.texture().height()
             || input_width != release_point_texture.texture().width() || input_height != release_point_texture.texture().height()) {
@@ -141,14 +148,33 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
         region_max = glm::max(region_max, region_min);
         m_settings_uniform.data.region_min = glm::fvec2(region_min);
         m_settings_uniform.data.region_size = glm::fvec2(region_max - region_min);
+        m_settings_uniform.data.spawn_only_in_tracking_area_mask = m_settings.spawn_only_in_tracking_area_mask ? 1u : 0u;
         update_gpu_settings();
+
+        const webgpu::raii::TextureWithSampler* active_release_texture = &release_point_texture;
+        std::unique_ptr<webgpu::raii::TextureWithSampler> generated_mask_texture;
+        const std::vector<glm::dvec2> polygon_vertices= m_settings.polygon_vertices;
+
+
+        if (m_settings.spawn_only_in_tracking_area_mask) {
+            generated_mask_texture = create_polygon_release_texture(
+                m_device, 
+                m_queue, 
+                glm::uvec2(input_width, input_height), 
+                *region_aabb, 
+                polygon_vertices
+            );
+            
+            // Point the active execution texture to our newly masked canvas instead
+            active_release_texture = generated_mask_texture.get();
+        }
 
         // create bind group
         std::vector<WGPUBindGroupEntry> entries {
             m_settings_uniform.raw_buffer().create_bind_group_entry(0),
             normal_texture.texture_view().create_bind_group_entry(1),
             height_texture.texture_view().create_bind_group_entry(2),
-            release_point_texture.texture_view().create_bind_group_entry(3),
+            active_release_texture->texture_view().create_bind_group_entry(3),
             m_output_storage_buffer->create_bind_group_entry(4),
             m_output_count_buffer->create_bind_group_entry(5),
         };
@@ -340,6 +366,82 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
         sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
         sampler_desc.maxAnisotropy = 1;
         return std::make_unique<webgpu::raii::Sampler>(device, sampler_desc);
-    }
+    }   
 
+    std::unique_ptr<webgpu::raii::TextureWithSampler> create_polygon_release_texture(
+    WGPUDevice device, 
+    WGPUQueue queue, 
+    glm::uvec2 dimensions, 
+    const radix::geometry::Aabb<2, double>& region_aabb, 
+    const std::vector<glm::dvec2>& polygon_vertices) 
+    {
+        // 1. Initialize a CPU-side canvas using QImage (matching your WebGPU texture dimensions)
+        QImage mask_image(dimensions.x, dimensions.y, QImage::Format_RGBA8888);
+        mask_image.fill(Qt::transparent); // Fills entire texture with 0 (outside the polygon)
+
+        // 2. Map world coordinates to pixel space based on the region bounding box
+        QPolygonF q_poly;
+        double aabb_width = region_aabb.max.x - region_aabb.min.x;
+        double aabb_height = region_aabb.max.y - region_aabb.min.y;
+
+        for (const auto& vertex : polygon_vertices) {
+            // Normalize coordinates to [0.0, 1.0] relative to bounding box
+            double norm_x = (vertex.x - region_aabb.min.x) / aabb_width;
+            double norm_y = (vertex.y - region_aabb.min.y) / aabb_height;
+
+            // Convert to actual pixel coordinates
+            double pixel_x = norm_x * dimensions.x;
+            // Invert Y if your GIS coordinates grow upwards, since texture space grows downwards
+            double pixel_y = (1.0 - norm_y) * dimensions.y; 
+
+            q_poly << QPointF(pixel_x, pixel_y);
+        }
+
+        // 3. Render the polygon onto the QImage
+        QPainter painter(&mask_image);
+        painter.setRenderHint(QPainter::Antialiasing, false);
+        painter.setBrush(QBrush(QColor(255, 0, 0, 255)));
+        painter.setPen(Qt::NoPen);
+        painter.drawPolygon(q_poly);
+        painter.end();
+
+        // 4. Set up WebGPU Texture Descriptor
+        WGPUTextureDescriptor texture_desc {};
+        texture_desc.label = WGPUStringView { .data = "polygon release mask texture", .length = WGPU_STRLEN };
+        texture_desc.dimension = WGPUTextureDimension_2D;
+        texture_desc.size = { dimensions.x, dimensions.y, 1 };
+        texture_desc.mipLevelCount = 1;
+        texture_desc.sampleCount = 1;
+        texture_desc.format = WGPUTextureFormat_RGBA8Unorm; // Unorm maps 255 integer to 1.0 float in WGSL
+        texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+
+        WGPUSamplerDescriptor sampler_desc {};
+        sampler_desc.label = WGPUStringView { .data = "polygon release mask sampler", .length = WGPU_STRLEN };
+        sampler_desc.addressModeU = WGPUAddressMode_ClampToEdge;
+        sampler_desc.addressModeV = WGPUAddressMode_ClampToEdge;
+        sampler_desc.magFilter = WGPUFilterMode_Nearest; // Nearest filtering ensures crisp cell limits
+        sampler_desc.minFilter = WGPUFilterMode_Nearest;
+
+        sampler_desc.maxAnisotropy = 1;
+        sampler_desc.compare = WGPUCompareFunction_Undefined;
+
+        auto webgpu_texture = std::make_unique<webgpu::raii::TextureWithSampler>(device, texture_desc, sampler_desc);
+
+        // 5. Upload the CPU pixel buffer to the GPU Texture memory
+        WGPUTexelCopyTextureInfo destination {};
+        destination.texture = webgpu_texture->texture().handle(); // Adjust based on your RAII wrapper's getter
+        destination.mipLevel = 0;
+        destination.origin = { 0, 0, 0 };
+        destination.aspect = WGPUTextureAspect_All;
+
+        WGPUTexelCopyBufferLayout data_layout {};
+        data_layout.offset = 0;
+        data_layout.bytesPerRow = dimensions.x * 4; // 4 bytes per pixel (RGBA8888)
+        data_layout.rowsPerImage = dimensions.y;
+
+        WGPUExtent3D write_size = { dimensions.x, dimensions.y, 1 };
+
+        wgpuQueueWriteTexture(queue, &destination, mask_image.bits(), mask_image.sizeInBytes(), &data_layout, &write_size);
+        return webgpu_texture;
+    }
 } // namespace webgpu_engine::compute::nodes

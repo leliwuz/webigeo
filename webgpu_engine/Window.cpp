@@ -1563,6 +1563,8 @@ void Window::update_compute_pipeline_settings()
         animation_settings.sflm_max_velocity = m_compute_pipeline_settings.sflm_max_velocity;
         animation_settings.sflm_damping = m_compute_pipeline_settings.sflm_damping;
         animation_settings.sflm_stop_velocity = m_compute_pipeline_settings.sflm_stop_velocity;
+        animation_settings.polygon_vertices = m_current_polygon_vertices;
+        animation_settings.spawn_only_in_tracking_area_mask = !m_current_polygon_vertices.empty();
         m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheAnimationNode>("compute_avalanche_animation_node").set_settings(animation_settings);
     }
 }
@@ -1851,11 +1853,16 @@ void Window::load_track_and_focus(const std::string& path)
 {
     std::vector<glm::dvec3> points;
 
+    m_current_polygon_vertices.clear();
+
     std::unique_ptr<nucleus::track::Gpx> gpx_track = nucleus::track::parse(QString::fromStdString(path));
     for (const auto& segment : gpx_track->track) {
         points.reserve(points.size() + segment.size());
         for (const auto& point : segment) {
             points.push_back({ point.latitude, point.longitude, point.elevation });
+
+            glm::dvec2 world_pos = nucleus::srs::lat_long_to_world({ point.latitude, point.longitude });
+            m_current_polygon_vertices.push_back(glm::dvec2(world_pos.x, world_pos.y));
         }
     }
     m_track_renderer->add_track(points);
