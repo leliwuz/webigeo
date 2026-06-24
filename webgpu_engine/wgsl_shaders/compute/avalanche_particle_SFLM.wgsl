@@ -40,6 +40,7 @@ struct DrawIndirectArgs {
 @group(0) @binding(6) var<storage, read_write> draw_args: DrawIndirectArgs;
 @group(0) @binding(7) var<storage, read_write> densities: array<f32>;
 @group(0) @binding(8) var<storage, read_write> pressures: array<f32>;
+@group(0) @binding(9) var<storage, read_write> output_layer_cellCounts: array<atomic<u32>>;
 
 const DESPAWN_Z: f32 = -100000.0;
 
@@ -56,6 +57,7 @@ fn safe_dir2(primary: vec2f, secondary: vec2f, eps: f32) -> vec2f {
 
     return vec2f(1.0, 0.0);
 }
+
 
 @compute @workgroup_size(256, 1, 1)
 fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
@@ -127,6 +129,20 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     vel = vel * (target_speed / current_speed);
     if (target_speed < settings.sflm_stop_velocity) {
         //vel = vec3f(0.0);
+    }
+
+    if (pos.z > -10000.0) {
+        let uv = (pos.xy - settings.region_min) / settings.region_size;
+        
+        let grid_x = clamp(u32(uv.x * f32(settings.output_resolution.x)), 0u, settings.output_resolution.x - 1u);
+        let grid_y = clamp(u32((1.0 - uv.y) * f32(settings.output_resolution.y)), 0u, settings.output_resolution.y - 1u);
+        
+        let cell_idx = grid_y * settings.output_resolution.x + grid_x;
+        
+        let max_elements = arrayLength(&output_layer_cellCounts);
+        if (cell_idx < max_elements) {
+            atomicAdd(&output_layer_cellCounts[cell_idx], 1u);
+        }
     }
 
     velocities[idx] = vec4f(vel, 0.0);

@@ -64,6 +64,15 @@ public:
     // Enables or disables all nodes whose name contains the given substring.
     void set_enabled_for_nodes_with_name(const std::string& name_substring, bool enabled);
 
+    const webgpu::raii::RawBuffer<glm::vec4>& output_particles_storage() const;
+    webgpu::raii::RawBuffer<glm::vec4>& output_particles_storage();
+
+    const webgpu::raii::RawBuffer<uint32_t>& output_particles_count() const;
+    webgpu::raii::RawBuffer<uint32_t>& output_particles_count();
+
+    const webgpu::raii::RawBuffer<uint32_t>& output_particles_indirect_draw_args() const;
+    webgpu::raii::RawBuffer<uint32_t>& output_particles_indirect_draw_args();
+
     // obtain outputs - for now all node graphs always output
     //  - a hashmap for overlay tiles (mapping tile id to texture array layer)
     //  - a texture array for overlay tiles
@@ -114,6 +123,10 @@ private:
 
     GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>* m_output_overlay_hash_map_ptr;
     TileStorageTexture* m_output_overlay_texture_storage_ptr;
+
+    webgpu::raii::RawBuffer<glm::vec4>* m_output_particles_storage_ptr = nullptr;
+    webgpu::raii::RawBuffer<uint32_t>* m_output_particles_count_ptr = nullptr;
+    webgpu::raii::RawBuffer<uint32_t>* m_output_particles_indirect_draw_args_ptr = nullptr;
 };
 
 } // namespace webgpu_engine::compute::nodes

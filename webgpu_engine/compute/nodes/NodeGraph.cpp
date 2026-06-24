@@ -25,6 +25,7 @@
 #include "ComputeAvalancheInfluenceAreaNode.h"
 #include "ComputeAvalancheTrajectoriesNode.h"
 #include "ComputeAvalancheAnimationNode.h"
+#include "BufferToTextureNode.h"
 #include "ComputeD8DirectionsNode.h"
 #include "ComputeNormalsNode.h"
 #include "ComputeReleasePointsNode.h"
@@ -97,6 +98,15 @@ GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& NodeGraph::output_overlay_hash
 const TileStorageTexture& NodeGraph::output_overlay_texture_storage() const { return *m_output_overlay_texture_storage_ptr; }
 
 TileStorageTexture& NodeGraph::output_overlay_texture_storage() { return *m_output_overlay_texture_storage_ptr; }
+
+const webgpu::raii::RawBuffer<glm::vec4>& NodeGraph::output_particles_storage() const { return *m_output_particles_storage_ptr; }
+webgpu::raii::RawBuffer<glm::vec4>& NodeGraph::output_particles_storage() { return *m_output_particles_storage_ptr; }
+
+const webgpu::raii::RawBuffer<uint32_t>& NodeGraph::output_particles_count() const { return *m_output_particles_count_ptr; }
+webgpu::raii::RawBuffer<uint32_t>& NodeGraph::output_particles_count() { return *m_output_particles_count_ptr; }
+
+const webgpu::raii::RawBuffer<uint32_t>& NodeGraph::output_particles_indirect_draw_args() const { return *m_output_particles_indirect_draw_args_ptr; }
+webgpu::raii::RawBuffer<uint32_t>& NodeGraph::output_particles_indirect_draw_args() { return *m_output_particles_indirect_draw_args_ptr; }
 
 void NodeGraph::connect_node_signals_and_slots()
 {
@@ -298,9 +308,34 @@ std::unique_ptr<NodeGraph> NodeGraph::create_release_points_compute_graph(const 
 
 std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_animation_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
-    auto node_graph = create_avalanche_animation_compute_graph_unconnected(manager, device);
+   auto node_graph = create_avalanche_animation_compute_graph_unconnected(manager, device);
     node_graph->set_name("avalanche_animation_compute_graph");
+
+    BufferToTextureNode::BufferToTextureSettings buffer_to_texture_settings {
+        .texture_format = WGPUTextureFormat_RGBA8Unorm,
+        .texture_usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc),
+    };
+
+    //BufferToTextureNode* buffer_to_texture_node = static_cast<BufferToTextureNode*>(node_graph->add_node("buffer_to_texture_node", std::make_unique<BufferToTextureNode>(manager, device, buffer_to_texture_settings)));
+
+    //Node& avalanche_animation_node = node_graph->get_node("compute_avalanche_animation_node");
+    
+    auto buffer_to_texture_node = std::make_unique<BufferToTextureNode>(manager, device, buffer_to_texture_settings);
+
+    // 4. Retrieve the animation node by C++ reference (Fixes Error C2440)
+    Node& animation_node = node_graph->get_node("compute_avalanche_animation_node");
+
+    // 5. Connect the animation outputs into the texture converter inputs
+    buffer_to_texture_node->input_socket("raster dimensions").connect(animation_node.output_socket("raster dimensions"));
+    buffer_to_texture_node->input_socket("storage buffer").connect(animation_node.output_socket("layer_cellCounts"));
+    buffer_to_texture_node->input_socket("transparency buffer").connect(animation_node.output_socket("layer_cellCounts"));
+
+    // 6. Register the texture converter node in the graph
+    node_graph->add_node("buffer_to_texture_node", std::move(buffer_to_texture_node));
+
+
     node_graph->connect_node_signals_and_slots();
+ 
     return node_graph;
 }
 

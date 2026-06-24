@@ -26,8 +26,11 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
               },
               {
                   OutputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<glm::vec4>*>(), [this]() { return m_output_storage_buffer.get(); }),
-                  OutputSocket(*this, "valid count buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_output_count_buffer.get(); }),
-                  OutputSocket(*this, "draw args buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_draw_indirect_args_buffer.get(); })
+                OutputSocket(*this, "valid count buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_output_count_buffer.get(); }),
+                OutputSocket(*this, "draw args buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_draw_indirect_args_buffer.get(); }),
+                
+                OutputSocket(*this, "raster dimensions", data_type<glm::uvec2>(), [this]() { return m_output_dimensions; }),
+                OutputSocket(*this, "layer_cellCounts", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer_cellCounts_buffer.get(); }),
               })
         , m_pipeline_manager { &pipeline_manager }
         , m_device { device }
@@ -67,10 +70,10 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
         if (!region_socket.is_socket_connected() || !normal_socket.is_socket_connected()
         || !height_socket.is_socket_connected() || !release_socket.is_socket_connected())
-    {
-        emit run_failed(NodeRunFailureInfo(*this, "missing required input connections"));
-        return;
-    }
+        {
+            emit run_failed(NodeRunFailureInfo(*this, "missing required input connections"));
+            return;
+        }
 
         const auto region_aabb = std::get<data_type<const radix::geometry::Aabb<2, double>*>()>(region_socket.get_connected_data());
         const auto& normal_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(normal_socket.get_connected_data());
@@ -137,7 +140,16 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
         m_particle_step_frame_counter = 0u;
 
         // create layer buffers
-        //TODO
+        uint32_t total_cells = m_output_dimensions.x * m_output_dimensions.y;
+        
+        m_layer_cellCounts_buffer = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(
+            m_device,
+            WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
+            total_cells
+        );
+
+        std::vector<uint32_t> zero_data(total_cells, 0);
+        wgpuQueueWriteBuffer(m_queue, m_layer_cellCounts_buffer->handle(), 0, zero_data.data(), zero_data.size() * sizeof(uint32_t));
 
         // update input settings on GPU side
         m_settings_uniform.data.output_resolution = m_output_dimensions;
@@ -258,6 +270,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
             m_draw_indirect_args_buffer->create_bind_group_entry(6),
             m_density_buffer->create_bind_group_entry(7),
             m_pressure_buffer->create_bind_group_entry(8),
+            m_layer_cellCounts_buffer->create_bind_group_entry(9),
         };
 
         webgpu::raii::BindGroup compute_bind_group(

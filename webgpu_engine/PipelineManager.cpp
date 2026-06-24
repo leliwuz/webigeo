@@ -1396,6 +1396,12 @@ void PipelineManager::create_avalanche_particle_step_compute_bind_group_layout()
     pressure_entry.buffer.type = WGPUBufferBindingType_Storage;
     pressure_entry.buffer.minBindingSize = 0;
 
+    WGPUBindGroupLayoutEntry output_layer_cellCounts_entry {};
+    output_layer_cellCounts_entry.binding = 9;
+    output_layer_cellCounts_entry.visibility = WGPUShaderStage_Compute;
+    output_layer_cellCounts_entry.buffer.type = WGPUBufferBindingType_Storage;
+    output_layer_cellCounts_entry.buffer.minBindingSize = 0;
+
     m_avalanche_particle_step_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
             input_settings_entry,
@@ -1407,6 +1413,7 @@ void PipelineManager::create_avalanche_particle_step_compute_bind_group_layout()
             output_draw_args_entry,
             density_entry,
             pressure_entry,
+            output_layer_cellCounts_entry,
         },
         "avalanche particle step compute bind group layout");
 }
@@ -1467,6 +1474,12 @@ void PipelineManager::create_avalanche_particle_SFLM_compute_bind_group_layout()
     pressure_entry.buffer.type = WGPUBufferBindingType_Storage;
     pressure_entry.buffer.minBindingSize = 0;
 
+    WGPUBindGroupLayoutEntry output_layer_cellCounts_entry {};
+    output_layer_cellCounts_entry.binding = 9;
+    output_layer_cellCounts_entry.visibility = WGPUShaderStage_Compute;
+    output_layer_cellCounts_entry.buffer.type = WGPUBufferBindingType_Storage;
+    output_layer_cellCounts_entry.buffer.minBindingSize = 0;
+
     m_avalanche_particle_SFLM_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
             input_settings_entry,
@@ -1478,6 +1491,7 @@ void PipelineManager::create_avalanche_particle_SFLM_compute_bind_group_layout()
             output_draw_args_entry,
             density_entry,
             pressure_entry,
+            output_layer_cellCounts_entry,
         },
         "avalanche particle SFLM compute bind group layout");
 }

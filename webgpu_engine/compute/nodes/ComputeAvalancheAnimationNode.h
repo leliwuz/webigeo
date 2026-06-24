@@ -88,6 +88,15 @@ public:
 
     void step_particles(float dt_seconds);
 
+    webgpu::raii::RawBuffer<glm::vec4>& output_storage_buffer() { return *m_output_storage_buffer; }
+    const webgpu::raii::RawBuffer<glm::vec4>& output_storage_buffer() const { return *m_output_storage_buffer; }
+
+    webgpu::raii::RawBuffer<uint32_t>& output_count_buffer() { return *m_output_count_buffer; }
+    const webgpu::raii::RawBuffer<uint32_t>& output_count_buffer() const { return *m_output_count_buffer; }
+
+    webgpu::raii::RawBuffer<uint32_t>& draw_indirect_args_buffer() { return *m_draw_indirect_args_buffer; }
+    const webgpu::raii::RawBuffer<uint32_t>& draw_indirect_args_buffer() const { return *m_draw_indirect_args_buffer; }
+
     public slots:
     void run_impl() override;
 private:
@@ -115,6 +124,7 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_draw_indirect_args_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<float>> m_density_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<float>> m_pressure_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_layer_cellCounts_buffer;
 
     const webgpu::raii::TextureWithSampler* m_cached_normal_texture = nullptr;
     const webgpu::raii::TextureWithSampler* m_cached_height_texture = nullptr;
