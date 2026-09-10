@@ -311,28 +311,18 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_animation_compute_graph(c
    auto node_graph = create_avalanche_animation_compute_graph_unconnected(manager, device);
     node_graph->set_name("avalanche_animation_compute_graph");
 
-    BufferToTextureNode::BufferToTextureSettings buffer_to_texture_settings {
-        .texture_format = WGPUTextureFormat_RGBA8Unorm,
-        .texture_usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc),
-    };
-
-    //BufferToTextureNode* buffer_to_texture_node = static_cast<BufferToTextureNode*>(node_graph->add_node("buffer_to_texture_node", std::make_unique<BufferToTextureNode>(manager, device, buffer_to_texture_settings)));
-
-    //Node& avalanche_animation_node = node_graph->get_node("compute_avalanche_animation_node");
-    
-    auto buffer_to_texture_node = std::make_unique<BufferToTextureNode>(manager, device, buffer_to_texture_settings);
+    BufferExportNode::ExportSettings export_settings { "export/animation/texture_layer_cellCounts.png" };
+    auto buffer_export_node = std::make_unique<BufferExportNode>(device, export_settings);
 
     // 4. Retrieve the animation node by C++ reference (Fixes Error C2440)
     Node& animation_node = node_graph->get_node("compute_avalanche_animation_node");
 
     // 5. Connect the animation outputs into the texture converter inputs
-    buffer_to_texture_node->input_socket("raster dimensions").connect(animation_node.output_socket("raster dimensions"));
-    buffer_to_texture_node->input_socket("storage buffer").connect(animation_node.output_socket("layer_cellCounts"));
-    buffer_to_texture_node->input_socket("transparency buffer").connect(animation_node.output_socket("layer_cellCounts"));
+    buffer_export_node->input_socket("buffer").connect(animation_node.output_socket("layer_cellCounts"));
+    buffer_export_node->input_socket("dimensions").connect(animation_node.output_socket("raster dimensions"));
 
     // 6. Register the texture converter node in the graph
-    node_graph->add_node("buffer_to_texture_node", std::move(buffer_to_texture_node));
-
+    node_graph->add_node("l_export_node", std::move(buffer_export_node));
 
     node_graph->connect_node_signals_and_slots();
  

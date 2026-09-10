@@ -411,11 +411,12 @@ void PipelineManager::create_render_particles_alpha_pipeline()
 {
     WGPUBlendState blend_state {};
     blend_state.color.operation = WGPUBlendOperation_Add;
-    blend_state.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-    blend_state.color.dstFactor = WGPUBlendFactor_One;
+    blend_state.color.srcFactor = WGPUBlendFactor_One;           
+    blend_state.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha; 
+
     blend_state.alpha.operation = WGPUBlendOperation_Add;
     blend_state.alpha.srcFactor = WGPUBlendFactor_One;
-    blend_state.alpha.dstFactor = WGPUBlendFactor_One;
+    blend_state.alpha.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
 
     WGPUColorTargetState color_target_state {};
     color_target_state.blend = &blend_state;

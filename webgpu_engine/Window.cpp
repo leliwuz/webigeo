@@ -1120,6 +1120,13 @@ void Window::paint_compute_pipeline_gui()
                 }
 
                 bool should_update_sph_runtime = false;
+
+                if (ImGui::Button("Export file")) {
+                    if (m_compute_graph->exists_node("l_export_node")) {
+                        m_compute_graph->get_node_as<compute::nodes::Node>("l_export_node").run();
+                    }
+                }
+
                 if (ImGui::TreeNodeEx("SPH options")) {
                     
                     if (ImGui::Checkbox("Use SPH particle simulation", &m_compute_pipeline_settings.use_sph_particle_step)) {
@@ -1566,6 +1573,21 @@ void Window::update_compute_pipeline_settings()
         animation_settings.polygon_vertices = m_current_polygon_vertices;
         animation_settings.spawn_only_in_tracking_area_mask = !m_current_polygon_vertices.empty();
         m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheAnimationNode>("compute_avalanche_animation_node").set_settings(animation_settings);
+
+        // update file export path to include current date and time
+        {
+            const std::filesystem::path export_root_dir = "export_" + get_current_date_time_string();
+
+            // set trajectory layer export directories
+            
+            compute::nodes::BufferExportNode::ExportSettings cell_counts_export_settings {
+                (export_root_dir / "animation/texture_layer_cellCounts.png").string()
+            };
+            if (m_compute_graph->exists_node("l_export_node")) {
+                m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l_export_node").set_settings(cell_counts_export_settings);
+            }
+        
+        }
     }
 }
 

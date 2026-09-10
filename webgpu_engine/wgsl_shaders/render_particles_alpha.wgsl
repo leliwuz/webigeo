@@ -52,8 +52,10 @@ fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
     let normal = normalize(in.normal);
     let view_dir = normalize(camera.position.xyz - in.world_pos);
     let facing = max(dot(normal, view_dir), 0.0);
-    let center_boost = smoothstep(0.95, 1.0, facing);
+    let center_boost = smoothstep(0.4, 1.0, facing);
     let alpha = particle_config.color.a * center_boost;
 
-    return vec4f(1.0, 1.0, 1.0, alpha);
+    let color = vec3f(139,252,255) / 255.0;
+
+    return vec4f(color*alpha, alpha);
 }

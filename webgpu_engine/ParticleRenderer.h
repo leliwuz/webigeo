@@ -22,7 +22,7 @@ public:
     };
 
     struct ParticleConfig {
-        glm::vec4 color = {1.f, 0.f, 0.f, 1.f};   
+        glm::vec4 color = {1.f, 0.f, 0.f, 0.8f};   
         float _pad4;        
         float _pad0;      
         float _pad2;

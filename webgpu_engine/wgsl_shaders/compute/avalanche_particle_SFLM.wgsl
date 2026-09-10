@@ -128,21 +128,23 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     let current_speed = max(length(vel), settings.sph_epsilon);
     vel = vel * (target_speed / current_speed);
     if (target_speed < settings.sflm_stop_velocity) {
-        //vel = vec3f(0.0);
+        vel = vec3f(0.0);
     }
 
     if (pos.z > -10000.0) {
+    
         let uv = (pos.xy - settings.region_min) / settings.region_size;
         
         let grid_x = clamp(u32(uv.x * f32(settings.output_resolution.x)), 0u, settings.output_resolution.x - 1u);
         let grid_y = clamp(u32((1.0 - uv.y) * f32(settings.output_resolution.y)), 0u, settings.output_resolution.y - 1u);
         
         let cell_idx = grid_y * settings.output_resolution.x + grid_x;
-        
+            
         let max_elements = arrayLength(&output_layer_cellCounts);
         if (cell_idx < max_elements) {
             atomicAdd(&output_layer_cellCounts[cell_idx], 1u);
         }
+        
     }
 
     velocities[idx] = vec4f(vel, 0.0);

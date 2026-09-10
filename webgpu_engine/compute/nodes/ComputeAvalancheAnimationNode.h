@@ -33,7 +33,7 @@ public:
         float sph_viscosity = 0.08f; // viscosity for SPH simulation
         float sph_epsilon = 1e-4f; // epsilon for SPH simulation
         bool use_SFLM_simulation = true; // whether to use SFLM simulation instead of SPH for particle step
-        float sflm_friction_angle = 9.0f; // phi - friction angle for SFLM simulation [degrees]
+        float sflm_friction_angle = 3.4f; // phi - friction angle for SFLM simulation [degrees]
         float sflm_min_travel_angle = 6.0f; // beta - minimum travel angle for SFLM simulation [degrees] 
         float sflm_max_velocity = 120.0f; // maximum velocity for SFLM simulation
         float sflm_damping = 0.5f; // damping factor for SFLM simulation
