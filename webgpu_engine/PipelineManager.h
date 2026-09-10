@@ -75,6 +75,7 @@ public:
     const webgpu::raii::BindGroupLayout& avalanche_influence_area_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& avalanche_animation_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& avalanche_particle_step_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& avalanche_particle_sph_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& avalanche_particle_SFLM_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& d8_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& release_point_compute_bind_group_layout() const;
@@ -135,6 +136,7 @@ private:
     void create_avalanche_influence_area_bind_group_layout();
     void create_avalanche_animation_compute_bind_group_layout();
     void create_avalanche_particle_step_compute_bind_group_layout();
+    void create_avalanche_particle_sph_compute_bind_group_layout();
     void create_avalanche_particle_SFLM_compute_bind_group_layout();
     void create_d8_compute_bind_group_layout();
     void create_release_points_compute_bind_group_layout();
@@ -190,6 +192,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_depth_texture_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_animation_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_particle_step_compute_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_particle_sph_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_particle_SFLM_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_trajectories_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_trajectories_buffer_to_texture_bind_group_layout;

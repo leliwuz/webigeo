@@ -73,6 +73,5 @@ fn fragmentMain(frag_in: FragIn) -> FragOut {
     } else {
         frag_out.color = line_config.color;
     }
-
     return frag_out;
 }

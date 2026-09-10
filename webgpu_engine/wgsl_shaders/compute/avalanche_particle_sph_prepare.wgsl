@@ -33,10 +33,28 @@ struct DrawIndirectArgs {
 @group(0) @binding(6) var<storage, read_write> draw_args: DrawIndirectArgs;
 @group(0) @binding(7) var<storage, read_write> densities: array<f32>;
 @group(0) @binding(8) var<storage, read_write> pressures: array<f32>;
+@group(0) @binding(10) var<storage, read_write> cell_heads: array<atomic<u32>>;
+@group(0) @binding(11) var<storage, read_write> particle_next: array<u32>;
+
+const DESPAWN_Z: f32 = -100000.0;
+const INVALID_INDEX: u32 = 0xffffffffu;
+
+fn position_to_cell_index(position_xy: vec2f) -> u32 {
+    let uv = (position_xy - settings.region_min) / settings.region_size;
+    let grid_x = clamp(u32(uv.x * f32(settings.output_resolution.x)), 0u, settings.output_resolution.x - 1u);
+    let grid_y = clamp(u32((1.0 - uv.y) * f32(settings.output_resolution.y)), 0u, settings.output_resolution.y - 1u);
+    return grid_y * settings.output_resolution.x + grid_x;
+}
 
 @compute @workgroup_size(256, 1, 1)
 fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     let idx = gid.x;
+    let total_cells = settings.output_resolution.x * settings.output_resolution.y;
+
+    if (idx < total_cells) {
+        atomicStore(&cell_heads[idx], INVALID_INDEX);
+    }
+
     let count = atomicLoad(&output_count.value);
 
     if (idx == 0u) {
@@ -49,4 +67,19 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     densities[idx] = 0.0;
     pressures[idx] = 0.0;
+
+    let pos = positions[idx].xyz;
+    particle_next[idx] = INVALID_INDEX;
+    if (pos.z <= DESPAWN_Z) {
+        return;
+    }
+
+    let region_max = settings.region_min + settings.region_size;
+    if (pos.x < settings.region_min.x || pos.x > region_max.x || pos.y < settings.region_min.y || pos.y > region_max.y) {
+        return;
+    }
+
+    let cell_idx = position_to_cell_index(pos.xy);
+    let previous_head = atomicExchange(&cell_heads[cell_idx], idx);
+    particle_next[idx] = previous_head;
 }

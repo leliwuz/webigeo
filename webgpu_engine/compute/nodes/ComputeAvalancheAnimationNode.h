@@ -125,6 +125,8 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<float>> m_density_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<float>> m_pressure_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_layer_cellCounts_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_sph_cell_heads_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_sph_particle_next_buffer;
 
     const webgpu::raii::TextureWithSampler* m_cached_normal_texture = nullptr;
     const webgpu::raii::TextureWithSampler* m_cached_height_texture = nullptr;

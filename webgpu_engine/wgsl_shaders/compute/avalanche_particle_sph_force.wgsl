@@ -41,8 +41,22 @@ struct DrawIndirectArgs {
 @group(0) @binding(6) var<storage, read_write> draw_args: DrawIndirectArgs;
 @group(0) @binding(7) var<storage, read_write> densities: array<f32>;
 @group(0) @binding(8) var<storage, read_write> pressures: array<f32>;
+@group(0) @binding(10) var<storage, read_write> cell_heads: array<atomic<u32>>;
+@group(0) @binding(11) var<storage, read_write> particle_next: array<u32>;
 
 const DESPAWN_Z: f32 = -100000.0;
+const INVALID_INDEX: u32 = 0xffffffffu;
+
+fn position_to_cell_coords(position_xy: vec2f) -> vec2<i32> {
+    let uv = (position_xy - settings.region_min) / settings.region_size;
+    let grid_x = clamp(i32(uv.x * f32(settings.output_resolution.x)), 0, i32(settings.output_resolution.x) - 1);
+    let grid_y = clamp(i32((1.0 - uv.y) * f32(settings.output_resolution.y)), 0, i32(settings.output_resolution.y) - 1);
+    return vec2<i32>(grid_x, grid_y);
+}
+
+fn cell_coords_to_index(cell: vec2<i32>) -> u32 {
+    return u32(cell.y) * settings.output_resolution.x + u32(cell.x);
+}
 
 @compute @workgroup_size(256, 1, 1)
 fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
@@ -71,28 +85,44 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     var pressure_force = vec3f(0.0);
     var viscosity_force = vec3f(0.0);
 
-    for (var j: u32 = 0u; j < count; j++) {
-        if (j == idx) {
-            continue;
+    let base_cell = position_to_cell_coords(pos_i.xy);
+    let grid_width = i32(settings.output_resolution.x);
+    let grid_height = i32(settings.output_resolution.y);
+
+    for (var offset_y: i32 = -1; offset_y <= 1; offset_y++) {
+        for (var offset_x: i32 = -1; offset_x <= 1; offset_x++) {
+            let neighbor_cell = base_cell + vec2<i32>(offset_x, offset_y);
+            if (neighbor_cell.x < 0 || neighbor_cell.y < 0 || neighbor_cell.x >= grid_width || neighbor_cell.y >= grid_height) {
+                continue;
+            }
+
+            var j = atomicLoad(&cell_heads[cell_coords_to_index(neighbor_cell)]);
+            loop {
+                if (j == INVALID_INDEX || j >= count) {
+                    break;
+                }
+
+                if (j != idx) {
+                    let pos_j = positions[j].xyz;
+                    let r = pos_i - pos_j;
+                    let r_len = length(r);
+                    if (r_len < settings.sph_smoothing_length && r_len > settings.sph_epsilon) {
+                        let rho_j = max(densities[j], settings.sph_epsilon);
+                        let p_j = pressures[j];
+                        let vel_j = velocities[j].xyz;
+
+                        pressure_force = pressure_force
+                            - settings.sph_particle_mass * ((p_i + p_j) / (2.0 * rho_j)) * sph_spiky_gradient(r, settings.sph_smoothing_length);
+
+                        let visc = sph_viscosity_laplacian(r_len, settings.sph_smoothing_length);
+                        viscosity_force = viscosity_force
+                            + settings.sph_viscosity * settings.sph_particle_mass * ((vel_j - vel_i) / rho_j) * visc;
+                    }
+                }
+
+                j = particle_next[j];
+            }
         }
-
-        let pos_j = positions[j].xyz;
-        let r = pos_i - pos_j;
-        let r_len = length(r);
-        if (r_len >= settings.sph_smoothing_length || r_len <= settings.sph_epsilon) {
-            continue;
-        }
-
-        let rho_j = max(densities[j], settings.sph_epsilon);
-        let p_j = pressures[j];
-        let vel_j = velocities[j].xyz;
-
-        pressure_force = pressure_force
-            - settings.sph_particle_mass * ((p_i + p_j) / (2.0 * rho_j)) * sph_spiky_gradient(r, settings.sph_smoothing_length);
-
-        let visc = sph_viscosity_laplacian(r_len, settings.sph_smoothing_length);
-        viscosity_force = viscosity_force
-            + settings.sph_viscosity * settings.sph_particle_mass * ((vel_j - vel_i) / rho_j) * visc;
     }
 
     let gravity_force = vec3f(0.0, 0.0, -settings.gravity * rho_i);

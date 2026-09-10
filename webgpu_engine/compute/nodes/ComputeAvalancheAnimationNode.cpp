@@ -102,16 +102,19 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
         qDebug() << "output resolution: " << m_output_dimensions.x << "x" << m_output_dimensions.y;
 
 
+        const uint32_t max_particle_count = m_output_dimensions.x * m_output_dimensions.y * m_settings.num_particles_per_cell;
+        const uint32_t total_cells = m_output_dimensions.x * m_output_dimensions.y;
+
         m_output_storage_buffer
         = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
-            m_output_dimensions.x * m_output_dimensions.y * m_settings.num_particles_per_cell,
+            max_particle_count,
             "avalanche avalanche compute output storage");
         m_output_count_buffer
             = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
                 1, "avalanche animation output count");
         m_velocity_storage_buffer
             = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
-                m_output_dimensions.x * m_output_dimensions.y * m_settings.num_particles_per_cell,
+                max_particle_count,
                 "avalanche animation velocity storage");
         m_draw_indirect_args_buffer
             = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device,
@@ -120,13 +123,23 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
         m_density_buffer
             = std::make_unique<webgpu::raii::RawBuffer<float>>(m_device,
                 WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
-                m_output_dimensions.x * m_output_dimensions.y * m_settings.num_particles_per_cell,
+                max_particle_count,
                 "avalanche animation density buffer");
         m_pressure_buffer
             = std::make_unique<webgpu::raii::RawBuffer<float>>(m_device,
                 WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
-                m_output_dimensions.x * m_output_dimensions.y * m_settings.num_particles_per_cell,
+                max_particle_count,
                 "avalanche animation pressure buffer");
+        m_sph_cell_heads_buffer
+            = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device,
+                WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
+                total_cells,
+                "avalanche animation SPH cell heads buffer");
+        m_sph_particle_next_buffer
+            = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device,
+                WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
+                max_particle_count,
+                "avalanche animation SPH particle next buffer");
 
         const uint32_t zero = 0u;
         m_output_count_buffer->write(m_queue, &zero, 1);
@@ -140,8 +153,6 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
         m_particle_step_frame_counter = 0u;
 
         // create layer buffers
-        uint32_t total_cells = m_output_dimensions.x * m_output_dimensions.y;
-        
         m_layer_cellCounts_buffer = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(
             m_device,
             WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
@@ -237,7 +248,8 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
     void ComputeAvalancheAnimationNode::step_particles(float dt_seconds)
     {
         if (!m_output_storage_buffer || !m_velocity_storage_buffer || !m_output_count_buffer || !m_draw_indirect_args_buffer
-            || !m_density_buffer || !m_pressure_buffer
+            || !m_density_buffer || !m_pressure_buffer || !m_layer_cellCounts_buffer
+            || !m_sph_cell_heads_buffer || !m_sph_particle_next_buffer
             || !m_cached_normal_texture || !m_cached_height_texture) {
             return;
         }
@@ -260,7 +272,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
         m_step_settings_uniform.data.sflm_stop_velocity = m_settings.sflm_stop_velocity;
         m_step_settings_uniform.update_gpu_data(m_queue);
         
-        std::vector<WGPUBindGroupEntry> entries {
+        std::vector<WGPUBindGroupEntry> step_entries {
             m_step_settings_uniform.raw_buffer().create_bind_group_entry(0),
             m_cached_normal_texture->texture_view().create_bind_group_entry(1),
             m_cached_height_texture->texture_view().create_bind_group_entry(2),
@@ -273,8 +285,25 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
             m_layer_cellCounts_buffer->create_bind_group_entry(9),
         };
 
-        webgpu::raii::BindGroup compute_bind_group(
-            m_device, m_pipeline_manager->avalanche_particle_step_bind_group_layout(), entries, "avalanche particle step bind group");
+        webgpu::raii::BindGroup step_compute_bind_group(
+            m_device, m_pipeline_manager->avalanche_particle_step_bind_group_layout(), step_entries, "avalanche particle step bind group");
+
+        std::vector<WGPUBindGroupEntry> sph_entries {
+            m_step_settings_uniform.raw_buffer().create_bind_group_entry(0),
+            m_cached_normal_texture->texture_view().create_bind_group_entry(1),
+            m_cached_height_texture->texture_view().create_bind_group_entry(2),
+            m_output_storage_buffer->create_bind_group_entry(3),
+            m_velocity_storage_buffer->create_bind_group_entry(4),
+            m_output_count_buffer->create_bind_group_entry(5),
+            m_draw_indirect_args_buffer->create_bind_group_entry(6),
+            m_density_buffer->create_bind_group_entry(7),
+            m_pressure_buffer->create_bind_group_entry(8),
+            m_sph_cell_heads_buffer->create_bind_group_entry(10),
+            m_sph_particle_next_buffer->create_bind_group_entry(11),
+        };
+
+        webgpu::raii::BindGroup sph_compute_bind_group(
+            m_device, m_pipeline_manager->avalanche_particle_sph_bind_group_layout(), sph_entries, "avalanche particle SPH bind group");
 
         WGPUCommandEncoderDescriptor descriptor {};
         descriptor.label = WGPUStringView { .data = "avalanche particle step command encoder", .length = WGPU_STRLEN };
@@ -289,7 +318,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
                 compute_pass_desc.label = WGPUStringView { .data = "avalanche particle SPH prepare pass", .length = WGPU_STRLEN };
                 webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
-                wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
+                wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, sph_compute_bind_group.handle(), 0, nullptr);
                 m_pipeline_manager->avalanche_particle_sph_prepare_compute_pipeline().run(compute_pass, workgroup_counts);
             }
 
@@ -298,7 +327,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
                 compute_pass_desc.label = WGPUStringView { .data = "avalanche particle SPH density pass", .length = WGPU_STRLEN };
                 webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
-                wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
+                wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, sph_compute_bind_group.handle(), 0, nullptr);
                 m_pipeline_manager->avalanche_particle_sph_density_compute_pipeline().run(compute_pass, workgroup_counts);
             }
 
@@ -307,7 +336,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
                 compute_pass_desc.label = WGPUStringView { .data = "avalanche particle SPH force pass", .length = WGPU_STRLEN };
                 webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
-                wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
+                wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, sph_compute_bind_group.handle(), 0, nullptr);
                 m_pipeline_manager->avalanche_particle_sph_force_compute_pipeline().run(compute_pass, workgroup_counts);
             }
         } else {
@@ -315,7 +344,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
             compute_pass_desc.label = WGPUStringView { .data = "avalanche particle legacy step pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
-            wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
+            wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, step_compute_bind_group.handle(), 0, nullptr);
             m_pipeline_manager->avalanche_particle_step_compute_pipeline().run(compute_pass, workgroup_counts);
         }
 
@@ -324,7 +353,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
             compute_pass_desc.label = WGPUStringView { .data = "avalanche particle SFLM step pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
-            wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
+            wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, step_compute_bind_group.handle(), 0, nullptr);
             m_pipeline_manager->avalanche_particle_SFLM_compute_pipeline().run(compute_pass, workgroup_counts);
         }
 
@@ -335,7 +364,7 @@ glm::uvec3 ComputeAvalancheAnimationNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
             compute_pass_desc.label = WGPUStringView { .data = "avalanche particle compact pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
-            wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
+            wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, step_compute_bind_group.handle(), 0, nullptr);
             m_pipeline_manager->avalanche_particle_compact_compute_pipeline().run(compute_pass, glm::uvec3(1, 1, 1));
         }
 
