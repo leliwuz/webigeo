@@ -311,7 +311,10 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_animation_compute_graph(c
    auto node_graph = create_avalanche_animation_compute_graph_unconnected(manager, device);
     node_graph->set_name("avalanche_animation_compute_graph");
 
-    BufferExportNode::ExportSettings export_settings { "export/animation/texture_layer_cellCounts.png" };
+    BufferExportNode::ExportSettings export_settings {
+        "export/animation/texture_layer_cellCounts.png",
+        BufferExportNode::ExportSettings::Encoding::LogarithmicGrayscale
+    };
     auto buffer_export_node = std::make_unique<BufferExportNode>(device, export_settings);
 
     // 4. Retrieve the animation node by C++ reference (Fixes Error C2440)

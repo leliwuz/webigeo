@@ -27,7 +27,13 @@ class BufferExportNode : public Node {
 
 public:
     struct ExportSettings {
+        enum class Encoding {
+            PackedUint32,
+            LogarithmicGrayscale,
+        };
+
         std::string output_file = "output_buffer.png";
+        Encoding encoding = Encoding::PackedUint32;
     };
 
     BufferExportNode(WGPUDevice device, const ExportSettings& settings);

@@ -18,9 +18,11 @@
 
 #include "BufferExportNode.h"
 
+#include <algorithm>
 #include <QDebug>
 #include <QString>
 #include <assert.h>
+#include <cmath>
 #include <filesystem>
 #include <limits>
 #include <nucleus/srs.h>
@@ -77,6 +79,21 @@ void BufferExportNode::run_impl()
         nucleus::Raster<glm::u8vec4> raster(dimensions);
         auto& raster_buffer = raster.buffer();
 
+        if (m_settings.encoding == ExportSettings::Encoding::LogarithmicGrayscale) {
+            const uint32_t max_value = *std::max_element(data.begin(), data.end());
+            const double log_max = std::log1p(static_cast<double>(max_value));
+
+            for (size_t i = 0; i < data.size(); i++) {
+                const uint32_t pixel = data[i];
+                const double normalized = log_max > 0.0
+                    ? std::log1p(static_cast<double>(pixel)) / log_max
+                    : 0.0;
+                const auto intensity = static_cast<uint8_t>(std::clamp(normalized, 0.0, 1.0) * 255.0);
+                raster_buffer[i] = pixel == 0
+                    ? glm::u8vec4(0, 0, 0, 0)
+                    : glm::u8vec4(intensity, intensity, intensity, 255);
+            }
+        } else {
         // Monitor highest, lowest, and average values
         /*{
             uint32_t min_value = std::numeric_limits<uint32_t>::max();
@@ -110,6 +127,7 @@ void BufferExportNode::run_impl()
             );
 
             raster_buffer[i] = color;
+        }
         }
 
         // Make sure output directory exists

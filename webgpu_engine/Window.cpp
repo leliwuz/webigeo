@@ -1581,7 +1581,8 @@ void Window::update_compute_pipeline_settings()
             // set trajectory layer export directories
             
             compute::nodes::BufferExportNode::ExportSettings cell_counts_export_settings {
-                (export_root_dir / "animation/texture_layer_cellCounts.png").string()
+                (export_root_dir / "animation/texture_layer_cellCounts.png").string(),
+                compute::nodes::BufferExportNode::ExportSettings::Encoding::LogarithmicGrayscale
             };
             if (m_compute_graph->exists_node("l_export_node")) {
                 m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l_export_node").set_settings(cell_counts_export_settings);
