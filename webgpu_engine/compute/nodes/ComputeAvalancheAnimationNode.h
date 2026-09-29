@@ -3,7 +3,9 @@
 #include "Node.h"
 #include "webgpu_engine/Buffer.h"
 #include "webgpu_engine/PipelineManager.h"
+#include "webgpu/timing/WebGpuTimer.h"
 
+#include <chrono>
 #include <type_traits>
 
 
@@ -17,25 +19,25 @@ public:
     
     struct AvalancheAnimationSettings {
         uint32_t resolution_multiplier = 1;
-        uint32_t zoom_level = 16;
+        uint32_t zoom_level = 17;
         WGPUTextureFormat texture_format = WGPUTextureFormat_RGBA8Unorm;
         WGPUTextureUsage texture_usage
             = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc);
-        float min_slope_angle = glm::radians(40.0f); // min slope angle [degrees]
+        float min_slope_angle = glm::radians(43.0f); // min slope angle [degrees]
         float max_slope_angle = glm::radians(45.0f); // max slope angle [degrees]
         glm::uvec2 sampling_interval = glm::uvec2(1, 1); // sampling interval in x and y direction [every sampling_interval texels]
         int num_particles_per_cell = 10; // number of particles to release per release cell
         bool use_sph_simulation = true; // whether to use SPH simulation for particle step or simple advection
-        float sph_smoothing_length = 8.0f; // smoothing length for SPH simulation
+        float sph_smoothing_length = 10.0f; // smoothing length for SPH simulation
         float sph_particle_mass = 10.0f; // mass of each SPH particle
-        float sph_rest_density = 5.0f; // rest density for SPH simulation
+        float sph_rest_density = 7.0f; // rest density for SPH simulation
         float sph_pressure_stiffness = 15.0f; // pressure stiffness for SPH simulation
         float sph_viscosity = 0.08f; // viscosity for SPH simulation
         float sph_epsilon = 1e-4f; // epsilon for SPH simulation
         bool use_SFLM_simulation = true; // whether to use SFLM simulation instead of SPH for particle step
-        float sflm_friction_angle = 3.4f; // phi - friction angle for SFLM simulation [degrees]
+        float sflm_friction_angle = 5.0f; // phi - friction angle for SFLM simulation [degrees]
         float sflm_min_travel_angle = 6.0f; // beta - minimum travel angle for SFLM simulation [degrees] 
-        float sflm_max_velocity = 120.0f; // maximum velocity for SFLM simulation
+        float sflm_max_velocity = 55.0f; // maximum velocity for SFLM simulation
         float sflm_damping = 0.5f; // damping factor for SFLM simulation
         float sflm_stop_velocity = 0.01f; // velocity threshold for stopping particles in SFLM simulation
         std::vector<glm::dvec2> polygon_vertices;
@@ -87,6 +89,8 @@ public:
     const AvalancheAnimationSettings& get_settings() const;
 
     void step_particles(float dt_seconds);
+    double last_particle_spawn_time_ms() const { return m_last_particle_spawn_time_ms; }
+    const std::vector<float>& gpu_frame_times_ms() const { return m_gpu_timer->get_results(); }
 
     webgpu::raii::RawBuffer<glm::vec4>& output_storage_buffer() { return *m_output_storage_buffer; }
     const webgpu::raii::RawBuffer<glm::vec4>& output_storage_buffer() const { return *m_output_storage_buffer; }
@@ -133,6 +137,9 @@ private:
 
     glm::uvec2 m_output_dimensions;
     uint32_t m_particle_step_frame_counter = 0u;
+    std::chrono::steady_clock::time_point m_particle_spawn_start;
+    double m_last_particle_spawn_time_ms = 0.0;
+    std::unique_ptr<webgpu::timing::WebGpuTimer> m_gpu_timer;
     //TODO: other Buffers / outputs for avalanche animation node when implemented (e.g. slope angle texture, etc.)
 };
 }
