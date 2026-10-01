@@ -3,9 +3,7 @@
 #include "Node.h"
 #include "webgpu_engine/Buffer.h"
 #include "webgpu_engine/PipelineManager.h"
-#include "webgpu/timing/WebGpuTimer.h"
 
-#include <chrono>
 #include <type_traits>
 
 
@@ -89,8 +87,6 @@ public:
     const AvalancheAnimationSettings& get_settings() const;
 
     void step_particles(float dt_seconds);
-    double last_particle_spawn_time_ms() const { return m_last_particle_spawn_time_ms; }
-    const std::vector<float>& gpu_frame_times_ms() const { return m_gpu_timer->get_results(); }
 
     webgpu::raii::RawBuffer<glm::vec4>& output_storage_buffer() { return *m_output_storage_buffer; }
     const webgpu::raii::RawBuffer<glm::vec4>& output_storage_buffer() const { return *m_output_storage_buffer; }
@@ -137,9 +133,6 @@ private:
 
     glm::uvec2 m_output_dimensions;
     uint32_t m_particle_step_frame_counter = 0u;
-    std::chrono::steady_clock::time_point m_particle_spawn_start;
-    double m_last_particle_spawn_time_ms = 0.0;
-    std::unique_ptr<webgpu::timing::WebGpuTimer> m_gpu_timer;
     //TODO: other Buffers / outputs for avalanche animation node when implemented (e.g. slope angle texture, etc.)
 };
 }
