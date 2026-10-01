@@ -3,7 +3,9 @@
 #include "Node.h"
 #include "webgpu_engine/Buffer.h"
 #include "webgpu_engine/PipelineManager.h"
+#include "webgpu/timing/WebGpuTimer.h"
 
+#include <chrono>
 #include <type_traits>
 
 
